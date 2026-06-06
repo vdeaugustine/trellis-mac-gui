@@ -1,0 +1,40 @@
+name: TrellisStudio
+options:
+  bundleIdPrefix: com.vinware
+targets:
+  TrellisStudio:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: TrellisStudio
+    preBuildScripts:
+      - name: "Copy Backend Scripts"
+        script: |
+          mkdir -p "$SRCROOT/TrellisStudio/BackendBundle"
+          cp "$SRCROOT/../../setup.sh" "$SRCROOT/TrellisStudio/BackendBundle/"
+          cp -r "$SRCROOT/../../patches" "$SRCROOT/TrellisStudio/BackendBundle/"
+          cp "$SRCROOT/../../generate.py" "$SRCROOT/TrellisStudio/BackendBundle/"
+          cp "$SRCROOT/../../trellis_daemon.py" "$SRCROOT/TrellisStudio/BackendBundle/"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vinware.trellis-studio
+        INFOPLIST_FILE: TrellisStudio/Info.plist
+        CODE_SIGN_ENTITLEMENTS: TrellisStudio/TrellisStudio.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_HARDENED_RUNTIME: YES
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_VERSION: "5.9"
+  TrellisStudioTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: TrellisStudioTests
+    dependencies:
+      - target: TrellisStudio
+    settings:
+      base:
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES

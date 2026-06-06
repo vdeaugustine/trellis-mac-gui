@@ -1,0 +1,570 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		058EB80336859BE87391DBF3 /* HistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F327A6E3ABB64075214FA8 /* HistoryService.swift */; };
+		11C0E73CC232004EDAED5539 /* GenerationStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BE4D543A460BD8A811FD71 /* GenerationStatus.swift */; };
+		154823626F6A40CECD7B7B0E /* trellis_daemon.py in Resources */ = {isa = PBXBuildFile; fileRef = F823D4676DF32F012A5EAF35 /* trellis_daemon.py */; };
+		1C88F9D73CDA649738007721 /* DaemonManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32232A13B2B6129105F0D725 /* DaemonManager.swift */; };
+		1C89DC874A7E17C02915BC63 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BAF8DEC550980B71B79146FF /* Assets.xcassets */; };
+		246445A66A7DF2BCCDD89F02 /* TrellisStudioApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3800E24E6485AC14E9A44CB0 /* TrellisStudioApp.swift */; };
+		2C623F2967EB94AB9E782415 /* ModelViewerPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E422307C0BAC7A33F440BC5C /* ModelViewerPanel.swift */; };
+		3E9EBFD91A63720F7DA20A88 /* GenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1649441A8794A6B88061C95B /* GenerationService.swift */; };
+		4476DFD1A97A2708AD6329EC /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A18603C13E4019F87F423F /* Animations.swift */; };
+		47A460F6DFB3E07BCE8C4754 /* mps_compat.py in Resources */ = {isa = PBXBuildFile; fileRef = 49EEB247A4561D426BB7B643 /* mps_compat.py */; };
+		550C062EC2D3B489CECE984A /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */; };
+		58FB165910929FBB7A21208B /* BatchQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0131F681477EC5B0DC757BE1 /* BatchQueueView.swift */; };
+		5E1170771095781E48C9385F /* SettingsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDBC04AC272DDD358A86F04F /* SettingsService.swift */; };
+		6667FC5984A110E1771D030D /* generate.py in Resources */ = {isa = PBXBuildFile; fileRef = 7597E83755F8E12AEE24AAB2 /* generate.py */; };
+		71A53B4D54D8F8E85B910430 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 869D6915219102C0825431FF /* SettingsView.swift */; };
+		7D95DD5F806B8E222A8946D7 /* GenerationRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = F220CE0703243EAE9C0778FD /* GenerationRecord.swift */; };
+		80B9C8C125501861BCF8251B /* ParameterPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F240E802FE4A9F0FFBBFD0DF /* ParameterPanel.swift */; };
+		87188B16B2EE10EE2936DF34 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE649FE3B3B2E6B5A16F95EC /* Theme.swift */; };
+		91C7F636E1C9121C00D7F3E9 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */; };
+		A33583324D3E2466D56240C1 /* OnboardingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150C48CA32D45BF9034088F4 /* OnboardingService.swift */; };
+		A78F8068F8B51E4B826A6D6C /* WatchdogErrorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5F577A59CB928133035D3F /* WatchdogErrorSheet.swift */; };
+		AF6A1A19027D43C237DD0370 /* setup.sh in Resources */ = {isa = PBXBuildFile; fileRef = 2E59B3D16865B0F7E4ACC38C /* setup.sh */; };
+		CD9D8DE5CE0D00BAF2CFEF8A /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8524AC5121A0C5DCDBFD1E2 /* SidebarView.swift */; };
+		E221C631830549C5710FAA0B /* InputPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F917E62D31297AF8DF6042 /* InputPanel.swift */; };
+		EA3D5EDA29B4C6F9D1EB57D2 /* GenerationParameters.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDCE7F3725BA9F573B49D551 /* GenerationParameters.swift */; };
+		F3BBCDA3F913F331F37AD8A2 /* TrellisStudioTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 304EFF1C5FD946198516F114 /* TrellisStudioTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0B55256C810E24DB0A9DAD9B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F163F39A070F1B8AE1F1323A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 85D81417B05E0A3ECF2C8F74;
+			remoteInfo = TrellisStudio;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0131F681477EC5B0DC757BE1 /* BatchQueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchQueueView.swift; sourceTree = "<group>"; };
+		150C48CA32D45BF9034088F4 /* OnboardingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingService.swift; sourceTree = "<group>"; };
+		1649441A8794A6B88061C95B /* GenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationService.swift; sourceTree = "<group>"; };
+		17A18603C13E4019F87F423F /* Animations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Animations.swift; sourceTree = "<group>"; };
+		1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		2E59B3D16865B0F7E4ACC38C /* setup.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = setup.sh; sourceTree = "<group>"; };
+		304EFF1C5FD946198516F114 /* TrellisStudioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrellisStudioTests.swift; sourceTree = "<group>"; };
+		32232A13B2B6129105F0D725 /* DaemonManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonManager.swift; sourceTree = "<group>"; };
+		34F917E62D31297AF8DF6042 /* InputPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputPanel.swift; sourceTree = "<group>"; };
+		3800E24E6485AC14E9A44CB0 /* TrellisStudioApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrellisStudioApp.swift; sourceTree = "<group>"; };
+		49EEB247A4561D426BB7B643 /* mps_compat.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = mps_compat.py; sourceTree = "<group>"; };
+		4BB4BAC4257C10AC44BCE4FF /* TrellisStudio.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrellisStudio.entitlements; sourceTree = "<group>"; };
+		544D073603681CEC8A00E943 /* TrellisStudioTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TrellisStudioTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5884350A564B0A77E88BA415 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		62BE4D543A460BD8A811FD71 /* GenerationStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationStatus.swift; sourceTree = "<group>"; };
+		7597E83755F8E12AEE24AAB2 /* generate.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = generate.py; sourceTree = "<group>"; };
+		869D6915219102C0825431FF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B0F327A6E3ABB64075214FA8 /* HistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryService.swift; sourceTree = "<group>"; };
+		BAF8DEC550980B71B79146FF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C8524AC5121A0C5DCDBFD1E2 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		CDCE7F3725BA9F573B49D551 /* GenerationParameters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationParameters.swift; sourceTree = "<group>"; };
+		D7E8EB3D52E52A79398CD3D0 /* TrellisStudio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrellisStudio.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DDBC04AC272DDD358A86F04F /* SettingsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsService.swift; sourceTree = "<group>"; };
+		E422307C0BAC7A33F440BC5C /* ModelViewerPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelViewerPanel.swift; sourceTree = "<group>"; };
+		EE649FE3B3B2E6B5A16F95EC /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		F220CE0703243EAE9C0778FD /* GenerationRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationRecord.swift; sourceTree = "<group>"; };
+		F240E802FE4A9F0FFBBFD0DF /* ParameterPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParameterPanel.swift; sourceTree = "<group>"; };
+		F823D4676DF32F012A5EAF35 /* trellis_daemon.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = trellis_daemon.py; sourceTree = "<group>"; };
+		FD5F577A59CB928133035D3F /* WatchdogErrorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchdogErrorSheet.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		03FA472DEF861EA64EE1E95D /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				0131F681477EC5B0DC757BE1 /* BatchQueueView.swift */,
+				28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */,
+				34F917E62D31297AF8DF6042 /* InputPanel.swift */,
+				E422307C0BAC7A33F440BC5C /* ModelViewerPanel.swift */,
+				1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */,
+				F240E802FE4A9F0FFBBFD0DF /* ParameterPanel.swift */,
+				869D6915219102C0825431FF /* SettingsView.swift */,
+				C8524AC5121A0C5DCDBFD1E2 /* SidebarView.swift */,
+				FD5F577A59CB928133035D3F /* WatchdogErrorSheet.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		23FAC47DE3340C20ED3B6B83 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				17A18603C13E4019F87F423F /* Animations.swift */,
+				EE649FE3B3B2E6B5A16F95EC /* Theme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		2E4291CBB5C4C87B44B59BBE /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				32232A13B2B6129105F0D725 /* DaemonManager.swift */,
+				1649441A8794A6B88061C95B /* GenerationService.swift */,
+				B0F327A6E3ABB64075214FA8 /* HistoryService.swift */,
+				150C48CA32D45BF9034088F4 /* OnboardingService.swift */,
+				DDBC04AC272DDD358A86F04F /* SettingsService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		4B22669263D4A356DC6812C7 /* BackendBundle */ = {
+			isa = PBXGroup;
+			children = (
+				7597E83755F8E12AEE24AAB2 /* generate.py */,
+				2E59B3D16865B0F7E4ACC38C /* setup.sh */,
+				F823D4676DF32F012A5EAF35 /* trellis_daemon.py */,
+				6743D002EB8FBE4C65BDAD4F /* patches */,
+			);
+			path = BackendBundle;
+			sourceTree = "<group>";
+		};
+		509205FF5189254445F1303D /* TrellisStudio */ = {
+			isa = PBXGroup;
+			children = (
+				BAF8DEC550980B71B79146FF /* Assets.xcassets */,
+				5884350A564B0A77E88BA415 /* Info.plist */,
+				4BB4BAC4257C10AC44BCE4FF /* TrellisStudio.entitlements */,
+				3800E24E6485AC14E9A44CB0 /* TrellisStudioApp.swift */,
+				4B22669263D4A356DC6812C7 /* BackendBundle */,
+				621C36A2C15D10D6B642EBF9 /* Models */,
+				2E4291CBB5C4C87B44B59BBE /* Services */,
+				23FAC47DE3340C20ED3B6B83 /* Theme */,
+				03FA472DEF861EA64EE1E95D /* Views */,
+			);
+			path = TrellisStudio;
+			sourceTree = "<group>";
+		};
+		565651D16DAEE5A75579519B /* TrellisStudioTests */ = {
+			isa = PBXGroup;
+			children = (
+				304EFF1C5FD946198516F114 /* TrellisStudioTests.swift */,
+			);
+			path = TrellisStudioTests;
+			sourceTree = "<group>";
+		};
+		621C36A2C15D10D6B642EBF9 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				CDCE7F3725BA9F573B49D551 /* GenerationParameters.swift */,
+				F220CE0703243EAE9C0778FD /* GenerationRecord.swift */,
+				62BE4D543A460BD8A811FD71 /* GenerationStatus.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		66C8A27FA392E54B01423DB0 = {
+			isa = PBXGroup;
+			children = (
+				509205FF5189254445F1303D /* TrellisStudio */,
+				565651D16DAEE5A75579519B /* TrellisStudioTests */,
+				6EE32A7D89631F6139F9944D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6743D002EB8FBE4C65BDAD4F /* patches */ = {
+			isa = PBXGroup;
+			children = (
+				49EEB247A4561D426BB7B643 /* mps_compat.py */,
+			);
+			path = patches;
+			sourceTree = "<group>";
+		};
+		6EE32A7D89631F6139F9944D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D7E8EB3D52E52A79398CD3D0 /* TrellisStudio.app */,
+				544D073603681CEC8A00E943 /* TrellisStudioTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		85D81417B05E0A3ECF2C8F74 /* TrellisStudio */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4D27B55EDEC5AC2A13638CB2 /* Build configuration list for PBXNativeTarget "TrellisStudio" */;
+			buildPhases = (
+				140DF9E43DAB8D531099C46D /* Copy Backend Scripts */,
+				0E9866A6C9DE5F337E04EA00 /* Sources */,
+				2786E05C916F5D179E676650 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TrellisStudio;
+			packageProductDependencies = (
+			);
+			productName = TrellisStudio;
+			productReference = D7E8EB3D52E52A79398CD3D0 /* TrellisStudio.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D14270FEAD2284358E3EE129 /* TrellisStudioTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7F392102C10DD266B6549B30 /* Build configuration list for PBXNativeTarget "TrellisStudioTests" */;
+			buildPhases = (
+				61B240FEB2A68B507D2435C2 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6DB9C0D029B8C69988E4B97C /* PBXTargetDependency */,
+			);
+			name = TrellisStudioTests;
+			packageProductDependencies = (
+			);
+			productName = TrellisStudioTests;
+			productReference = 544D073603681CEC8A00E943 /* TrellisStudioTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F163F39A070F1B8AE1F1323A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 446D8D33038F8879F94335B8 /* Build configuration list for PBXProject "TrellisStudio" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 66C8A27FA392E54B01423DB0;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 6EE32A7D89631F6139F9944D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				85D81417B05E0A3ECF2C8F74 /* TrellisStudio */,
+				D14270FEAD2284358E3EE129 /* TrellisStudioTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		2786E05C916F5D179E676650 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1C89DC874A7E17C02915BC63 /* Assets.xcassets in Resources */,
+				6667FC5984A110E1771D030D /* generate.py in Resources */,
+				47A460F6DFB3E07BCE8C4754 /* mps_compat.py in Resources */,
+				AF6A1A19027D43C237DD0370 /* setup.sh in Resources */,
+				154823626F6A40CECD7B7B0E /* trellis_daemon.py in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		140DF9E43DAB8D531099C46D /* Copy Backend Scripts */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Backend Scripts";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "mkdir -p \"$SRCROOT/TrellisStudio/BackendBundle\"\ncp \"$SRCROOT/../../setup.sh\" \"$SRCROOT/TrellisStudio/BackendBundle/\"\ncp -r \"$SRCROOT/../../patches\" \"$SRCROOT/TrellisStudio/BackendBundle/\"\ncp \"$SRCROOT/../../generate.py\" \"$SRCROOT/TrellisStudio/BackendBundle/\"\ncp \"$SRCROOT/../../trellis_daemon.py\" \"$SRCROOT/TrellisStudio/BackendBundle/\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0E9866A6C9DE5F337E04EA00 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4476DFD1A97A2708AD6329EC /* Animations.swift in Sources */,
+				58FB165910929FBB7A21208B /* BatchQueueView.swift in Sources */,
+				91C7F636E1C9121C00D7F3E9 /* ContentView.swift in Sources */,
+				1C88F9D73CDA649738007721 /* DaemonManager.swift in Sources */,
+				EA3D5EDA29B4C6F9D1EB57D2 /* GenerationParameters.swift in Sources */,
+				7D95DD5F806B8E222A8946D7 /* GenerationRecord.swift in Sources */,
+				3E9EBFD91A63720F7DA20A88 /* GenerationService.swift in Sources */,
+				11C0E73CC232004EDAED5539 /* GenerationStatus.swift in Sources */,
+				058EB80336859BE87391DBF3 /* HistoryService.swift in Sources */,
+				E221C631830549C5710FAA0B /* InputPanel.swift in Sources */,
+				2C623F2967EB94AB9E782415 /* ModelViewerPanel.swift in Sources */,
+				A33583324D3E2466D56240C1 /* OnboardingService.swift in Sources */,
+				550C062EC2D3B489CECE984A /* OnboardingView.swift in Sources */,
+				80B9C8C125501861BCF8251B /* ParameterPanel.swift in Sources */,
+				5E1170771095781E48C9385F /* SettingsService.swift in Sources */,
+				71A53B4D54D8F8E85B910430 /* SettingsView.swift in Sources */,
+				CD9D8DE5CE0D00BAF2CFEF8A /* SidebarView.swift in Sources */,
+				87188B16B2EE10EE2936DF34 /* Theme.swift in Sources */,
+				246445A66A7DF2BCCDD89F02 /* TrellisStudioApp.swift in Sources */,
+				A78F8068F8B51E4B826A6D6C /* WatchdogErrorSheet.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		61B240FEB2A68B507D2435C2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F3BBCDA3F913F331F37AD8A2 /* TrellisStudioTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6DB9C0D029B8C69988E4B97C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 85D81417B05E0A3ECF2C8F74 /* TrellisStudio */;
+			targetProxy = 0B55256C810E24DB0A9DAD9B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		00A3D71A26E38CD1366D89D9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vinware.TrellisStudioTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TrellisStudio.app/Contents/MacOS/TrellisStudio";
+			};
+			name = Release;
+		};
+		4865C618BA8A1D9DD3C23A66 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vinware.TrellisStudioTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TrellisStudio.app/Contents/MacOS/TrellisStudio";
+			};
+			name = Debug;
+		};
+		56141ADCF926477641426530 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = TrellisStudio/TrellisStudio.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = TrellisStudio/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.vinware.trellis-studio";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		6A9BAA3424783D139748F68F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		8B3AEC5351F92C7967B75EEB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		B70C5DCBFF2FCBB2FE2FDFBD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = TrellisStudio/TrellisStudio.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = TrellisStudio/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.vinware.trellis-studio";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		446D8D33038F8879F94335B8 /* Build configuration list for PBXProject "TrellisStudio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6A9BAA3424783D139748F68F /* Debug */,
+				8B3AEC5351F92C7967B75EEB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		4D27B55EDEC5AC2A13638CB2 /* Build configuration list for PBXNativeTarget "TrellisStudio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				56141ADCF926477641426530 /* Debug */,
+				B70C5DCBFF2FCBB2FE2FDFBD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7F392102C10DD266B6549B30 /* Build configuration list for PBXNativeTarget "TrellisStudioTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4865C618BA8A1D9DD3C23A66 /* Debug */,
+				00A3D71A26E38CD1366D89D9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F163F39A070F1B8AE1F1323A /* Project object */;
+}
