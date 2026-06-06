@@ -12,7 +12,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Spacer().frame(height: 16)
                 
-                ForEach(["General", "Account", "Defaults", "Appearance", "Advanced"], id: \.self) { tab in
+                ForEach(["General", "Account", "Defaults", "Appearance", "Advanced", "Cleanup"], id: \.self) { tab in
                     Button(action: { activeTab = tab }) {
                         HStack {
                             Image(systemName: iconName(for: tab))
@@ -83,6 +83,8 @@ struct SettingsView: View {
                             appearanceTab
                         } else if activeTab == "Advanced" {
                             advancedTab
+                        } else if activeTab == "Cleanup" {
+                            cleanupTab
                         }
                     }
                     .padding(30)
@@ -239,6 +241,10 @@ struct SettingsView: View {
         }
     }
     
+    private var cleanupTab: some View {
+        CleanupSettingsTab()
+    }
+    
     private func iconName(for tab: String) -> String {
         switch tab {
         case "General": return "gearshape"
@@ -246,6 +252,7 @@ struct SettingsView: View {
         case "Defaults": return "slider.horizontal.3"
         case "Appearance": return "paintbrush"
         case "Advanced": return "cpu"
+        case "Cleanup": return "trash"
         default: return "gearshape"
         }
     }
