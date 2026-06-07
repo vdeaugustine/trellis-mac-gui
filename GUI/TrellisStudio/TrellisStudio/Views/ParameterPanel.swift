@@ -1,13 +1,18 @@
 import SwiftUI
 
 struct ParameterPanel: View {
-    @State private var parameters = GenerationParameters()
-    
+    @Bindable var parameters: GenerationParameters
+    @Binding var inputImageURL: URL?
+    var onGenerate: () -> Void
+
+    @EnvironmentObject var daemon: DaemonManager
+    @EnvironmentObject var generation: GenerationService
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Generation Parameters")
                 .font(.headline)
-            
+
             // Seed
             VStack(alignment: .leading, spacing: 8) {
                 Text("Seed")
@@ -16,9 +21,7 @@ struct ParameterPanel: View {
                 HStack {
                     TextField("Random Seed", value: $parameters.seed, format: .number)
                         .textFieldStyle(.roundedBorder)
-                    Button(action: {
-                        parameters.randomizeSeed()
-                    }) {
+                    Button(action: { parameters.randomizeSeed() }) {
                         Image(systemName: "dice.fill")
                     }
                     .buttonStyle(.plain)
@@ -27,7 +30,7 @@ struct ParameterPanel: View {
                     .cornerRadius(6)
                 }
             }
-            
+
             // Pipeline Type
             VStack(alignment: .leading, spacing: 8) {
                 Text("Pipeline Type")
@@ -36,11 +39,11 @@ struct ParameterPanel: View {
                 Picker("", selection: $parameters.pipelineType) {
                     Text("512").tag("512")
                     Text("1024").tag("1024")
-                    Text("1024 Cascade").tag("1024 Cascade")
+                    Text("1024 Cascade").tag("1024_cascade")
                 }
                 .pickerStyle(.segmented)
             }
-            
+
             // Texture Size
             VStack(alignment: .leading, spacing: 8) {
                 Text("Texture Size")
@@ -54,61 +57,50 @@ struct ParameterPanel: View {
                 .pickerStyle(.segmented)
                 .disabled(parameters.noTexture)
             }
-            
+
             // No Texture
             Toggle("No Texture", isOn: $parameters.noTexture)
                 .toggleStyle(.switch)
-            
+
             Spacer()
-            
+
             // Presets
             HStack(spacing: 8) {
-                Button("Fast Draft") {
-                    parameters.pipelineType = "512"
-                    parameters.textureSize = 512
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(6)
-                
-                Button("Balanced") {
-                    parameters.pipelineType = "1024"
-                    parameters.textureSize = 1024
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(6)
-                
-                Button("Max Quality") {
-                    parameters.pipelineType = "1024 Cascade"
-                    parameters.textureSize = 2048
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(6)
+                presetButton("Fast Draft", pipeline: "512", texture: 512)
+                presetButton("Balanced", pipeline: "1024", texture: 1024)
+                presetButton("Max Quality", pipeline: "1024_cascade", texture: 2048)
             }
             .font(.caption)
-            
+
             // Generate Button
-            Button(action: {
-                // Trigger generation
-            }) {
-                Text("Generate Model")
-                    .bold()
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Theme.accentGradient)
-                    .foregroundColor(.white)
-                    .cornerRadius(Theme.CornerRadius.button)
+            Button(action: onGenerate) {
+                HStack(spacing: 8) {
+                    if generation.activeRecord != nil {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.white)
+                    } else {
+                        Image(systemName: "cube.fill")
+                    }
+                    Text(generateButtonLabel)
+                        .bold()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(generateButtonBackground)
+                .foregroundColor(.white)
+                .cornerRadius(Theme.CornerRadius.button)
             }
             .buttonStyle(.plain)
             .keyboardShortcut("g", modifiers: .command)
+            .disabled(isGenerateDisabled)
+
+            // Status hint
+            if isGenerateDisabled {
+                statusHint
+                    .font(.caption)
+                    .foregroundColor(Theme.warningAmber)
+            }
         }
         .padding(20)
         .background(.ultraThinMaterial)
@@ -117,5 +109,50 @@ struct ParameterPanel: View {
             RoundedRectangle(cornerRadius: Theme.CornerRadius.panel)
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         )
+    }
+
+    // MARK: - Helpers
+
+    private func presetButton(_ title: String, pipeline: String, texture: Int) -> some View {
+        Button(title) {
+            parameters.pipelineType = pipeline
+            parameters.textureSize = texture
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(0.1))
+        .cornerRadius(6)
+    }
+
+    private var isGenerateDisabled: Bool {
+        inputImageURL == nil || !daemon.isReady || generation.activeRecord != nil
+    }
+
+    private var generateButtonLabel: String {
+        if generation.activeRecord != nil { return "Generating…" }
+        if inputImageURL == nil { return "Select an Image" }
+        if !daemon.isReady { return "Waiting for Backend…" }
+        return "Generate Model"
+    }
+
+    private var generateButtonBackground: some ShapeStyle {
+        if isGenerateDisabled {
+            return AnyShapeStyle(Color.gray.opacity(0.3))
+        }
+        return AnyShapeStyle(Theme.accentGradient)
+    }
+
+    @ViewBuilder
+    private var statusHint: some View {
+        if inputImageURL == nil {
+            Label("Drop or browse an image first", systemImage: "photo")
+        } else if daemon.isOffline {
+            Label("Backend is offline — check Settings", systemImage: "exclamationmark.triangle")
+        } else if daemon.isWarmingUp {
+            Label("Pipeline loading — please wait", systemImage: "hourglass")
+        } else if generation.activeRecord != nil {
+            Label("Generation in progress", systemImage: "clock")
+        }
     }
 }
