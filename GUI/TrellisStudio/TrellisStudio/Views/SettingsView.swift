@@ -12,7 +12,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Spacer().frame(height: 16)
                 
-                ForEach(["General", "Account", "Defaults", "Appearance", "Advanced", "Cleanup"], id: \.self) { tab in
+                ForEach(["General", "Account", "Models", "Defaults", "Appearance", "Advanced", "Cleanup"], id: \.self) { tab in
                     Button(action: { activeTab = tab }) {
                         HStack {
                             Image(systemName: iconName(for: tab))
@@ -48,12 +48,12 @@ struct SettingsView: View {
                             .foregroundColor(Theme.accentIndigo)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Apple M3 Pro")
+                            Text(SystemInfoProvider.chipName)
                                 .font(.caption).bold()
-                            Text("18 GB Unified Memory")
+                            Text(SystemInfoProvider.memoryString)
                                 .font(.caption2)
                                 .foregroundColor(Theme.slateGray)
-                            Text("macOS 14.4.1")
+                            Text(SystemInfoProvider.macOSVersion)
                                 .font(.caption2)
                                 .foregroundColor(Theme.slateGray)
                         }
@@ -77,6 +77,8 @@ struct SettingsView: View {
                             generalTab
                         } else if activeTab == "Account" {
                             accountTab
+                        } else if activeTab == "Models" {
+                            modelsTab
                         } else if activeTab == "Defaults" {
                             defaultsTab
                         } else if activeTab == "Appearance" {
@@ -94,7 +96,27 @@ struct SettingsView: View {
         }
         .background(Theme.background)
         .preferredColorScheme(.dark)
-        .frame(width: 700, height: 500)
+        .frame(
+            minWidth: 600, idealWidth: 750, maxWidth: 1000,
+            minHeight: 450, idealHeight: 580, maxHeight: 800
+        )
+        .onAppear {
+            // Auto-populate token from HF cache if GUI field is empty
+            if settings.hfToken.isEmpty,
+               let cached = HFAuthService.shared.detectExistingToken() {
+                settings.hfToken = cached
+            }
+            // Auto-validate and check gated access
+            let token = HFAuthService.shared.resolveToken()
+            if !token.isEmpty {
+                Task {
+                    await HFAuthService.shared.performValidation(token: token)
+                    if HFAuthService.shared.isTokenValid {
+                        await HFAuthService.shared.checkAllGatedAccess(token: token)
+                    }
+                }
+            }
+        }
     }
     
     private var generalTab: some View {
@@ -152,14 +174,15 @@ struct SettingsView: View {
                 HStack(spacing: 12) {
                     Button("Validate Token") {
                         Task {
-                            await HFAuthService.shared.performValidation(token: settings.hfToken)
+                            let token = HFAuthService.shared.resolveToken()
+                            await HFAuthService.shared.performValidation(token: token)
                             if HFAuthService.shared.isTokenValid {
-                                _ = HFAuthService.shared.saveTokenToHFCache(settings.hfToken)
-                                await HFAuthService.shared.checkAllGatedAccess(token: settings.hfToken)
+                                _ = HFAuthService.shared.saveTokenToHFCache(token)
+                                await HFAuthService.shared.checkAllGatedAccess(token: token)
                             }
                         }
                     }
-                    .disabled(settings.hfToken.isEmpty || HFAuthService.shared.isValidating)
+                    .disabled(HFAuthService.shared.resolveToken().isEmpty || HFAuthService.shared.isValidating)
 
                     if HFAuthService.shared.isValidating {
                         ProgressView().controlSize(.small)
@@ -169,6 +192,23 @@ struct SettingsView: View {
                 Text("Also saved to ~/.cache/huggingface/token for Python tools.")
                     .font(.caption)
                     .foregroundColor(Theme.slateGray)
+            }
+            .onAppear {
+                // Auto-populate from cache if GUI field is empty
+                if settings.hfToken.isEmpty,
+                   let cached = HFAuthService.shared.detectExistingToken() {
+                    settings.hfToken = cached
+                }
+                // Auto-check gated access on appear
+                let token = HFAuthService.shared.resolveToken()
+                if !token.isEmpty && !HFAuthService.shared.isTokenValid {
+                    Task {
+                        await HFAuthService.shared.performValidation(token: token)
+                        if HFAuthService.shared.isTokenValid {
+                            await HFAuthService.shared.checkAllGatedAccess(token: token)
+                        }
+                    }
+                }
             }
 
             Divider()
@@ -181,11 +221,12 @@ struct SettingsView: View {
                     Spacer()
                     Button("Refresh") {
                         Task {
-                            await HFAuthService.shared.checkAllGatedAccess(token: settings.hfToken)
+                            let token = HFAuthService.shared.resolveToken()
+                            await HFAuthService.shared.checkAllGatedAccess(token: token)
                         }
                     }
                     .font(.caption)
-                    .disabled(settings.hfToken.isEmpty)
+                    .disabled(HFAuthService.shared.resolveToken().isEmpty)
                 }
 
                 ForEach(HFAuthService.shared.gatedModels) { model in
@@ -332,10 +373,15 @@ struct SettingsView: View {
         CleanupSettingsTab()
     }
     
+    private var modelsTab: some View {
+        ModelManagementTab()
+    }
+
     private func iconName(for tab: String) -> String {
         switch tab {
         case "General": return "gearshape"
         case "Account": return "person"
+        case "Models": return "cube.box"
         case "Defaults": return "slider.horizontal.3"
         case "Appearance": return "paintbrush"
         case "Advanced": return "cpu"

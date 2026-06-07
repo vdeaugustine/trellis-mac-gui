@@ -15,10 +15,13 @@
 		2C623F2967EB94AB9E782415 /* ModelViewerPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E422307C0BAC7A33F440BC5C /* ModelViewerPanel.swift */; };
 		3E9EBFD91A63720F7DA20A88 /* GenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1649441A8794A6B88061C95B /* GenerationService.swift */; };
 		4476DFD1A97A2708AD6329EC /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A18603C13E4019F87F423F /* Animations.swift */; };
+		483A9E6EE8EF6E545B13AB9E /* ModelCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8EEC6A1A0D707329B382569 /* ModelCatalogService.swift */; };
 		516664464B2596F1FE655438 /* CleanupSettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B6DE8EC5978EABE9F19700 /* CleanupSettingsTab.swift */; };
+		519B84DBC22A92B290B69707 /* SystemInfoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41114CF1C029EE90C22907D1 /* SystemInfoProvider.swift */; };
 		51EB7CC339712F636D79B3E3 /* CleanupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB57077658E0F96AF0088661 /* CleanupService.swift */; };
 		550C062EC2D3B489CECE984A /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */; };
 		58FB165910929FBB7A21208B /* BatchQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0131F681477EC5B0DC757BE1 /* BatchQueueView.swift */; };
+		5D54E5107721662192D0B56F /* ModelManagementTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB4DC0CC6FC52AD475DC4B8 /* ModelManagementTab.swift */; };
 		5E1170771095781E48C9385F /* SettingsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDBC04AC272DDD358A86F04F /* SettingsService.swift */; };
 		71A53B4D54D8F8E85B910430 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 869D6915219102C0825431FF /* SettingsView.swift */; };
 		7D95DD5F806B8E222A8946D7 /* GenerationRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = F220CE0703243EAE9C0778FD /* GenerationRecord.swift */; };
@@ -61,6 +64,7 @@
 		32232A13B2B6129105F0D725 /* DaemonManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonManager.swift; sourceTree = "<group>"; };
 		34F917E62D31297AF8DF6042 /* InputPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputPanel.swift; sourceTree = "<group>"; };
 		3800E24E6485AC14E9A44CB0 /* TrellisStudioApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrellisStudioApp.swift; sourceTree = "<group>"; };
+		41114CF1C029EE90C22907D1 /* SystemInfoProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemInfoProvider.swift; sourceTree = "<group>"; };
 		4BB4BAC4257C10AC44BCE4FF /* TrellisStudio.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrellisStudio.entitlements; sourceTree = "<group>"; };
 		52B6DE8EC5978EABE9F19700 /* CleanupSettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupSettingsTab.swift; sourceTree = "<group>"; };
 		544D073603681CEC8A00E943 /* TrellisStudioTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TrellisStudioTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -75,12 +79,14 @@
 		CB57077658E0F96AF0088661 /* CleanupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupService.swift; sourceTree = "<group>"; };
 		CDCE7F3725BA9F573B49D551 /* GenerationParameters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationParameters.swift; sourceTree = "<group>"; };
 		D7E8EB3D52E52A79398CD3D0 /* TrellisStudio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrellisStudio.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DAB4DC0CC6FC52AD475DC4B8 /* ModelManagementTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelManagementTab.swift; sourceTree = "<group>"; };
 		DDBC04AC272DDD358A86F04F /* SettingsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsService.swift; sourceTree = "<group>"; };
 		E422307C0BAC7A33F440BC5C /* ModelViewerPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelViewerPanel.swift; sourceTree = "<group>"; };
 		EE649FE3B3B2E6B5A16F95EC /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		F220CE0703243EAE9C0778FD /* GenerationRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationRecord.swift; sourceTree = "<group>"; };
 		F240E802FE4A9F0FFBBFD0DF /* ParameterPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParameterPanel.swift; sourceTree = "<group>"; };
 		F64EF415D47EAFC68C350657 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
+		F8EEC6A1A0D707329B382569 /* ModelCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalogService.swift; sourceTree = "<group>"; };
 		FD5F577A59CB928133035D3F /* WatchdogErrorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchdogErrorSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -94,6 +100,7 @@
 				87B4622074EB1E6AF9C7F104 /* GenerationProgressView.swift */,
 				2EC36C6BD10BC0994A33D509 /* HuggingFaceOnboardingStep.swift */,
 				34F917E62D31297AF8DF6042 /* InputPanel.swift */,
+				DAB4DC0CC6FC52AD475DC4B8 /* ModelManagementTab.swift */,
 				E422307C0BAC7A33F440BC5C /* ModelViewerPanel.swift */,
 				1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */,
 				F240E802FE4A9F0FFBBFD0DF /* ParameterPanel.swift */,
@@ -123,8 +130,10 @@
 				1649441A8794A6B88061C95B /* GenerationService.swift */,
 				89B128C941A3B7EFCB788F2B /* HFAuthService.swift */,
 				B0F327A6E3ABB64075214FA8 /* HistoryService.swift */,
+				F8EEC6A1A0D707329B382569 /* ModelCatalogService.swift */,
 				150C48CA32D45BF9034088F4 /* OnboardingService.swift */,
 				DDBC04AC272DDD358A86F04F /* SettingsService.swift */,
+				41114CF1C029EE90C22907D1 /* SystemInfoProvider.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -304,6 +313,8 @@
 				058EB80336859BE87391DBF3 /* HistoryService.swift in Sources */,
 				AB4617723ABD066225C2F1CE /* HuggingFaceOnboardingStep.swift in Sources */,
 				E221C631830549C5710FAA0B /* InputPanel.swift in Sources */,
+				483A9E6EE8EF6E545B13AB9E /* ModelCatalogService.swift in Sources */,
+				5D54E5107721662192D0B56F /* ModelManagementTab.swift in Sources */,
 				2C623F2967EB94AB9E782415 /* ModelViewerPanel.swift in Sources */,
 				A33583324D3E2466D56240C1 /* OnboardingService.swift in Sources */,
 				550C062EC2D3B489CECE984A /* OnboardingView.swift in Sources */,
@@ -311,6 +322,7 @@
 				5E1170771095781E48C9385F /* SettingsService.swift in Sources */,
 				71A53B4D54D8F8E85B910430 /* SettingsView.swift in Sources */,
 				CD9D8DE5CE0D00BAF2CFEF8A /* SidebarView.swift in Sources */,
+				519B84DBC22A92B290B69707 /* SystemInfoProvider.swift in Sources */,
 				87188B16B2EE10EE2936DF34 /* Theme.swift in Sources */,
 				246445A66A7DF2BCCDD89F02 /* TrellisStudioApp.swift in Sources */,
 				A78F8068F8B51E4B826A6D6C /* WatchdogErrorSheet.swift in Sources */,

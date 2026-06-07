@@ -54,6 +54,13 @@ final class HFAuthService: ObservableObject {
 
     private init() {}
 
+    /// Returns the best available token: SettingsService → HF cache file.
+    func resolveToken() -> String {
+        let guiToken = SettingsService.shared.hfToken
+        if !guiToken.isEmpty { return guiToken }
+        return detectExistingToken() ?? ""
+    }
+
     // MARK: - Token Detection
 
     /// Checks `~/.cache/huggingface/token` for an existing token from CLI login.

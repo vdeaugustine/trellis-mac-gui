@@ -8,6 +8,8 @@ struct TrellisStudioApp: App {
     @StateObject private var generationService = GenerationService.shared
     @StateObject private var logger = AppLogger.shared
 
+    @Environment(\.openWindow) private var openWindow
+
     var body: some Scene {
         WindowGroup {
             if onboardingService.isCompleted {
@@ -22,6 +24,20 @@ struct TrellisStudioApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .modelContainer(for: GenerationRecord.self)
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") {
+                    openWindow(id: "settings")
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+        }
+
+        Window("Trellis Studio Settings", id: "settings") {
+            SettingsView()
+        }
+        .windowResizability(.contentSize)
+        .defaultSize(width: 750, height: 580)
     }
 
     private func startDaemonIfNeeded() {
