@@ -1,0 +1,6 @@
+# GUI-only dependencies for the Python wrapper. Kept separate from the root
+# pyproject.toml so headless / SSH backend installs don't pull in Qt.
+# Install into the SAME .venv that runs generate.py:
+#   .venv/bin/pip install -r gui_python/requirements-gui.txt
+PySide6
+Pillow
