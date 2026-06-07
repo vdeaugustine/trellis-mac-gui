@@ -8,14 +8,17 @@ targets:
     deploymentTarget: "14.0"
     sources:
       - path: TrellisStudio
-    preBuildScripts:
-      - name: "Copy Backend Scripts"
+        excludes:
+          - "BackendBundle/**"
+    postCompileScripts:
+      - name: "Bundle Backend Scripts"
         script: |
-          mkdir -p "$SRCROOT/TrellisStudio/BackendBundle"
-          cp "$SRCROOT/../../setup.sh" "$SRCROOT/TrellisStudio/BackendBundle/"
-          cp -r "$SRCROOT/../../patches" "$SRCROOT/TrellisStudio/BackendBundle/"
-          cp "$SRCROOT/../../generate.py" "$SRCROOT/TrellisStudio/BackendBundle/"
-          cp "$SRCROOT/../../trellis_daemon.py" "$SRCROOT/TrellisStudio/BackendBundle/"
+          BACKEND_SRC="$SRCROOT/TrellisStudio/BackendBundle"
+          BACKEND_DST="$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Resources/BackendBundle"
+          mkdir -p "$BACKEND_DST"
+          # Copy from the pre-populated source directory
+          cp -R "$BACKEND_SRC/" "$BACKEND_DST/"
+          echo "Copied BackendBundle to $BACKEND_DST"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.vinware.trellis-studio

@@ -1,5 +1,35 @@
 import Foundation
 
+/// Represents the result status of a single installation log line.
+enum InstallLogLevel: String {
+    case info = "INFO"
+    case warning = "WARN"
+    case error = "ERROR"
+    case success = "OK"
+}
+
+/// A single log entry from the installation process.
+struct InstallLogEntry: Identifiable {
+    let id = UUID()
+    let timestamp: Date
+    let level: InstallLogLevel
+    let message: String
+    
+    init(_ level: InstallLogLevel, _ message: String) {
+        self.timestamp = Date()
+        self.level = level
+        self.message = message
+    }
+}
+
+/// Overall status of the environment installation.
+enum InstallStatus: Equatable {
+    case idle
+    case installing
+    case succeeded
+    case failed(String)
+}
+
 final class OnboardingService: ObservableObject {
     static let shared = OnboardingService()
     
@@ -10,6 +40,8 @@ final class OnboardingService: ObservableObject {
     private init() {
         self.isCompleted = UserDefaults.standard.bool(forKey: "onboardingCompleted")
     }
+    
+    // MARK: - Disk Space
     
     func checkDiskSpace() -> Double {
         let fileURL = URL(fileURLWithPath: "/")
@@ -24,12 +56,13 @@ final class OnboardingService: ObservableObject {
         return 0.0
     }
     
+    // MARK: - Environment Check
+    
     func checkEnvironmentInstalled() -> Bool {
-        let fileManager = FileManager.default
-        let backendPath = backendDirectoryURL.path
+        let fm = FileManager.default
         let pythonPath = backendDirectoryURL.appendingPathComponent(".venv/bin/python").path
         let generatePath = backendDirectoryURL.appendingPathComponent("generate.py").path
-        return fileManager.fileExists(atPath: pythonPath) && fileManager.fileExists(atPath: generatePath)
+        return fm.fileExists(atPath: pythonPath) && fm.fileExists(atPath: generatePath)
     }
     
     var backendDirectoryURL: URL {
@@ -37,83 +70,159 @@ final class OnboardingService: ObservableObject {
         return appSupport.appendingPathComponent("com.vinware.trellis-studio/backend")
     }
     
-    func installEnvironment() -> AsyncStream<String> {
+    // MARK: - Bundle Location
+    
+    /// Resolves the BackendBundle from the app bundle or the source tree (dev mode).
+    private func resolveBackendBundleURL() -> URL? {
+        // 1. Check inside the compiled .app bundle
+        if let bundled = Bundle.main.url(forResource: "BackendBundle", withExtension: nil) {
+            return bundled
+        }
+        
+        // 2. Dev fallback: look relative to the source tree
+        //    When running from Xcode, __FILE__ is inside the source tree.
+        let sourceRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Services/
+            .deletingLastPathComponent() // TrellisStudio/
+            .appendingPathComponent("BackendBundle")
+        if FileManager.default.fileExists(atPath: sourceRoot.path) {
+            return sourceRoot
+        }
+        
+        // 3. Try the repo root (two levels above GUI/TrellisStudio)
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Services/
+            .deletingLastPathComponent() // TrellisStudio/
+            .deletingLastPathComponent() // TrellisStudio/
+            .deletingLastPathComponent() // GUI/
+        let repoScripts = ["setup.sh", "generate.py", "trellis_daemon.py"]
+        let allExist = repoScripts.allSatisfy {
+            FileManager.default.fileExists(atPath: repoRoot.appendingPathComponent($0).path)
+        }
+        if allExist { return repoRoot }
+        
+        return nil
+    }
+    
+    // MARK: - Install Environment
+    
+    /// Runs the full installation and yields structured log entries.
+    func installEnvironment() -> AsyncStream<InstallLogEntry> {
         AsyncStream { continuation in
-            Task {
-                let fileManager = FileManager.default
-                let backendURL = backendDirectoryURL
+            Task.detached { [self] in
+                let fm = FileManager.default
+                let backendURL = self.backendDirectoryURL
                 
-                // 1. Create Application Support dir if needed
+                // Step 1: Create target directory
+                continuation.yield(InstallLogEntry(.info, "Creating backend directory…"))
                 do {
-                    try fileManager.createDirectory(at: backendURL, withIntermediateDirectories: true)
+                    try fm.createDirectory(at: backendURL, withIntermediateDirectories: true)
+                    continuation.yield(InstallLogEntry(.success, "Directory ready: \(backendURL.path)"))
                 } catch {
-                    continuation.yield("Error creating backend directory: \(error)")
+                    continuation.yield(InstallLogEntry(.error, "Failed to create directory: \(error.localizedDescription)"))
                     continuation.finish()
                     return
                 }
                 
-                // 2. Copy bundled scripts
-                continuation.yield("Copying scripts...")
-                if let bundleResourceURL = Bundle.main.resourceURL?.appendingPathComponent("BackendBundle") {
-                    do {
-                        let items = try fileManager.contentsOfDirectory(atPath: bundleResourceURL.path)
-                        for item in items {
-                            let src = bundleResourceURL.appendingPathComponent(item)
-                            let dst = backendURL.appendingPathComponent(item)
-                            if fileManager.fileExists(atPath: dst.path) {
-                                try fileManager.removeItem(at: dst)
-                            }
-                            try fileManager.copyItem(at: src, to: dst)
+                // Step 2: Locate and copy scripts
+                continuation.yield(InstallLogEntry(.info, "Locating backend scripts…"))
+                guard let sourceURL = self.resolveBackendBundleURL() else {
+                    continuation.yield(InstallLogEntry(.error, "BackendBundle not found in app bundle or source tree."))
+                    continuation.yield(InstallLogEntry(.info, "Searched: Bundle.main.resourceURL, source tree, repo root."))
+                    continuation.finish()
+                    return
+                }
+                continuation.yield(InstallLogEntry(.success, "Found scripts at: \(sourceURL.path)"))
+                
+                continuation.yield(InstallLogEntry(.info, "Copying files to Application Support…"))
+                do {
+                    let items = try fm.contentsOfDirectory(atPath: sourceURL.path)
+                    for item in items {
+                        let src = sourceURL.appendingPathComponent(item)
+                        let dst = backendURL.appendingPathComponent(item)
+                        if fm.fileExists(atPath: dst.path) {
+                            try fm.removeItem(at: dst)
                         }
-                    } catch {
-                        continuation.yield("Error copying scripts: \(error)")
-                        continuation.finish()
-                        return
+                        try fm.copyItem(at: src, to: dst)
+                        continuation.yield(InstallLogEntry(.info, "  Copied: \(item)"))
                     }
-                } else {
-                    continuation.yield("Warning: BackendBundle not found in App Resources. Running in-place if dev mode.")
+                    continuation.yield(InstallLogEntry(.success, "All scripts copied."))
+                } catch {
+                    continuation.yield(InstallLogEntry(.error, "Copy failed: \(error.localizedDescription)"))
+                    continuation.finish()
+                    return
                 }
                 
-                // 3. Execute setup.sh
+                // Step 3: Verify setup.sh exists before running
+                let setupPath = backendURL.appendingPathComponent("setup.sh")
+                guard fm.fileExists(atPath: setupPath.path) else {
+                    continuation.yield(InstallLogEntry(.error, "setup.sh not found at \(setupPath.path)"))
+                    continuation.finish()
+                    return
+                }
+                
+                // Step 4: Make setup.sh executable
+                do {
+                    try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: setupPath.path)
+                } catch {
+                    continuation.yield(InstallLogEntry(.warning, "Could not chmod setup.sh: \(error.localizedDescription)"))
+                }
+                
+                // Step 5: Run setup.sh
+                continuation.yield(InstallLogEntry(.info, "Running setup.sh — this may take several minutes…"))
+                
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/bin/bash")
-                process.arguments = ["setup.sh"]
+                process.arguments = ["-l", "setup.sh"]
                 process.currentDirectoryURL = backendURL
+                process.environment = ProcessInfo.processInfo.environment
                 
-                let pipe = Pipe()
-                process.standardOutput = pipe
-                process.standardError = pipe
+                let stdoutPipe = Pipe()
+                let stderrPipe = Pipe()
+                process.standardOutput = stdoutPipe
+                process.standardError = stderrPipe
                 
-                let fileHandle = pipe.fileHandleForReading
-                fileHandle.readabilityHandler = { handle in
+                // Stream stdout
+                stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
                     let data = handle.availableData
-                    if data.count > 0, let str = String(data: data, encoding: .utf8) {
-                        // Yield each line
-                        let lines = str.split(separator: "\n").map(String.init)
-                        for line in lines {
-                            continuation.yield(line)
-                        }
+                    guard data.count > 0, let str = String(data: data, encoding: .utf8) else { return }
+                    for line in str.components(separatedBy: "\n") where !line.isEmpty {
+                        continuation.yield(InstallLogEntry(.info, line))
+                    }
+                }
+                
+                // Stream stderr
+                stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+                    let data = handle.availableData
+                    guard data.count > 0, let str = String(data: data, encoding: .utf8) else { return }
+                    for line in str.components(separatedBy: "\n") where !line.isEmpty {
+                        continuation.yield(InstallLogEntry(.warning, line))
                     }
                 }
                 
                 do {
                     try process.run()
                     process.waitUntilExit()
-                    fileHandle.readabilityHandler = nil
                     
-                    if process.terminationStatus == 0 {
-                        continuation.yield("Setup completed successfully.")
+                    stdoutPipe.fileHandleForReading.readabilityHandler = nil
+                    stderrPipe.fileHandleForReading.readabilityHandler = nil
+                    
+                    let exitCode = process.terminationStatus
+                    if exitCode == 0 {
+                        continuation.yield(InstallLogEntry(.success, "Setup completed successfully."))
                     } else {
-                        continuation.yield("Setup failed with code \(process.terminationStatus).")
+                        continuation.yield(InstallLogEntry(.error, "setup.sh exited with code \(exitCode)."))
                     }
                 } catch {
-                    continuation.yield("Error running setup: \(error)")
+                    continuation.yield(InstallLogEntry(.error, "Failed to launch setup.sh: \(error.localizedDescription)"))
                 }
                 
                 continuation.finish()
             }
         }
     }
+    
+    // MARK: - HuggingFace Token
     
     func validateHFToken(_ token: String) async -> Bool {
         guard !token.isEmpty else { return false }

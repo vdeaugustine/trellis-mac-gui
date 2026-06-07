@@ -9,9 +9,8 @@ struct OnboardingView: View {
     @State private var tokenValid = false
     @State private var validatingToken = false
     
-    @State private var installLogs: [String] = []
-    @State private var isInstalling = false
-    @State private var installComplete = false
+    @State private var installLogs: [InstallLogEntry] = []
+    @State private var installStatus: InstallStatus = .idle
     
     var body: some View {
         HStack(spacing: 0) {
@@ -97,7 +96,7 @@ struct OnboardingView: View {
                         .padding(.vertical, 8)
                         .background(Color.white.opacity(0.05))
                         .cornerRadius(Theme.CornerRadius.button)
-                        .disabled(isInstalling)
+                        .disabled(installStatus == .installing)
                     }
                     
                     Spacer()
@@ -130,7 +129,9 @@ struct OnboardingView: View {
         .onAppear {
             hfToken = settings.hfToken
             tokenValid = !hfToken.isEmpty
-            installComplete = onboarding.checkEnvironmentInstalled()
+            if onboarding.checkEnvironmentInstalled() {
+                installStatus = .succeeded
+            }
         }
     }
     
@@ -213,82 +214,205 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Environment Setup")
                 .font(.title2).bold()
-            Text("Trellis Studio will automatically install the backend environment and its dependencies.")
+            Text("Trellis Studio will automatically install the Python backend, clone required repositories, and compile Metal acceleration.")
                 .font(.body)
                 .foregroundColor(Theme.slateGray)
             
-            if !installComplete && !isInstalling {
-                Button("Install Environment") {
-                    startInstallation()
+            // Status banner
+            statusBanner
+            
+            // Install / Retry button
+            if installStatus == .idle || installStatus != .installing && installStatus != .succeeded {
+                Button(action: { startInstallation() }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: installStatus == .idle ? "arrow.down.circle.fill" : "arrow.clockwise")
+                        Text(installStatus == .idle ? "Install Environment" : "Retry Installation")
+                            .bold()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Theme.accentGradient)
+                    .foregroundColor(.white)
+                    .cornerRadius(Theme.CornerRadius.button)
                 }
                 .buttonStyle(.plain)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(Theme.accentGradient)
-                .foregroundColor(.white)
-                .cornerRadius(Theme.CornerRadius.button)
             }
             
-            if isInstalling || installComplete {
-                VStack(alignment: .leading) {
+            // Log console
+            if !installLogs.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Console header
+                    HStack {
+                        Image(systemName: "terminal")
+                            .font(.caption)
+                        Text("Installation Log")
+                            .font(.caption).bold()
+                        Spacer()
+                        Text("\(installLogs.count) entries")
+                            .font(.caption2)
+                            .foregroundColor(Theme.slateGray)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.white.opacity(0.03))
+                    
+                    Divider()
+                    
                     ScrollViewReader { proxy in
                         ScrollView {
-                            VStack(alignment: .leading, spacing: 4) {
-                                ForEach(Array(installLogs.enumerated()), id: \.offset) { index, log in
-                                    Text(log)
-                                        .font(.system(.caption, design: .monospaced))
-                                        .foregroundColor(Theme.slateGray)
-                                        .id(index)
+                            LazyVStack(alignment: .leading, spacing: 2) {
+                                ForEach(installLogs) { entry in
+                                    logEntryRow(entry)
+                                        .id(entry.id)
                                 }
                             }
+                            .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .frame(height: 200)
-                        .onChange(of: installLogs.count) { _, newValue in
-                            withAnimation {
-                                proxy.scrollTo(newValue - 1, anchor: .bottom)
+                        .frame(height: 220)
+                        .onChange(of: installLogs.count) { _, _ in
+                            if let last = installLogs.last {
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    proxy.scrollTo(last.id, anchor: .bottom)
+                                }
                             }
                         }
                     }
                 }
-                .padding(16)
-                .background(Color.black.opacity(0.2))
+                .background(Color(hex: 0x0A0C12))
                 .cornerRadius(Theme.CornerRadius.card)
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
-                        .stroke(Theme.border, lineWidth: 1)
+                        .stroke(logBorderColor, lineWidth: 1)
                 )
-            }
-            
-            if installComplete {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Theme.successGreen)
-                    Text("Installation Complete")
-                        .foregroundColor(Theme.successGreen)
-                        .bold()
-                }
             }
         }
     }
     
+    @ViewBuilder
+    private var statusBanner: some View {
+        switch installStatus {
+        case .idle:
+            EmptyView()
+        case .installing:
+            HStack(spacing: 12) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Installing — this may take several minutes…")
+                    .font(.subheadline)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.accentIndigo.opacity(0.1))
+            .cornerRadius(Theme.CornerRadius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                    .stroke(Theme.accentIndigo.opacity(0.3), lineWidth: 1)
+            )
+        case .succeeded:
+            HStack(spacing: 12) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title3)
+                    .foregroundColor(Theme.successGreen)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Installation Complete")
+                        .font(.headline)
+                        .foregroundColor(Theme.successGreen)
+                    Text("Backend environment is ready.")
+                        .font(.caption)
+                        .foregroundColor(Theme.slateGray)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.successGreen.opacity(0.08))
+            .cornerRadius(Theme.CornerRadius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                    .stroke(Theme.successGreen.opacity(0.3), lineWidth: 1)
+            )
+        case .failed(let reason):
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title3)
+                    .foregroundColor(Theme.errorRed)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Installation Failed")
+                        .font(.headline)
+                        .foregroundColor(Theme.errorRed)
+                    Text(reason)
+                        .font(.caption)
+                        .foregroundColor(Theme.slateGray)
+                        .lineLimit(3)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.errorRed.opacity(0.08))
+            .cornerRadius(Theme.CornerRadius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                    .stroke(Theme.errorRed.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+    
+    private func logEntryRow(_ entry: InstallLogEntry) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(logIcon(for: entry.level))
+                .font(.system(.caption2, design: .monospaced))
+            Text(entry.message)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundColor(logColor(for: entry.level))
+                .textSelection(.enabled)
+        }
+    }
+    
+    private func logIcon(for level: InstallLogLevel) -> String {
+        switch level {
+        case .info: return "▸"
+        case .warning: return "⚠"
+        case .error: return "✖"
+        case .success: return "✔"
+        }
+    }
+    
+    private func logColor(for level: InstallLogLevel) -> Color {
+        switch level {
+        case .info: return Theme.slateGray
+        case .warning: return Theme.warningAmber
+        case .error: return Theme.errorRed
+        case .success: return Theme.successGreen
+        }
+    }
+    
+    private var logBorderColor: Color {
+        switch installStatus {
+        case .failed: return Theme.errorRed.opacity(0.3)
+        case .succeeded: return Theme.successGreen.opacity(0.3)
+        default: return Theme.border
+        }
+    }
+    
     private func startInstallation() {
-        isInstalling = true
-        installLogs.append("Starting installation...")
+        installStatus = .installing
+        installLogs = []
         
         Task {
             let stream = onboarding.installEnvironment()
-            for await line in stream {
+            for await entry in stream {
                 await MainActor.run {
-                    installLogs.append(line)
+                    installLogs.append(entry)
                 }
             }
             
             await MainActor.run {
-                isInstalling = false
-                installComplete = onboarding.checkEnvironmentInstalled()
-                if !installComplete {
-                    installLogs.append("Installation failed. Please review the logs above.")
+                let success = onboarding.checkEnvironmentInstalled()
+                if success {
+                    installStatus = .succeeded
+                } else {
+                    let lastError = installLogs.last(where: { $0.level == .error })?.message ?? "Unknown error"
+                    installStatus = .failed(lastError)
                 }
             }
         }
@@ -376,8 +500,8 @@ struct OnboardingView: View {
     }
     
     private var shouldDisableNextButton: Bool {
-        if isInstalling { return true }
-        if currentStep == 3 { return !installComplete }
+        if installStatus == .installing { return true }
+        if currentStep == 3 { return installStatus != .succeeded }
         if currentStep == 4 { return hfToken.isEmpty }
         return false
     }

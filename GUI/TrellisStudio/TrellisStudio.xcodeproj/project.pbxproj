@@ -9,20 +9,17 @@
 /* Begin PBXBuildFile section */
 		058EB80336859BE87391DBF3 /* HistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F327A6E3ABB64075214FA8 /* HistoryService.swift */; };
 		11C0E73CC232004EDAED5539 /* GenerationStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BE4D543A460BD8A811FD71 /* GenerationStatus.swift */; };
-		154823626F6A40CECD7B7B0E /* trellis_daemon.py in Resources */ = {isa = PBXBuildFile; fileRef = F823D4676DF32F012A5EAF35 /* trellis_daemon.py */; };
 		1C88F9D73CDA649738007721 /* DaemonManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32232A13B2B6129105F0D725 /* DaemonManager.swift */; };
 		1C89DC874A7E17C02915BC63 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BAF8DEC550980B71B79146FF /* Assets.xcassets */; };
 		246445A66A7DF2BCCDD89F02 /* TrellisStudioApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3800E24E6485AC14E9A44CB0 /* TrellisStudioApp.swift */; };
 		2C623F2967EB94AB9E782415 /* ModelViewerPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E422307C0BAC7A33F440BC5C /* ModelViewerPanel.swift */; };
 		3E9EBFD91A63720F7DA20A88 /* GenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1649441A8794A6B88061C95B /* GenerationService.swift */; };
 		4476DFD1A97A2708AD6329EC /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A18603C13E4019F87F423F /* Animations.swift */; };
-		47A460F6DFB3E07BCE8C4754 /* mps_compat.py in Resources */ = {isa = PBXBuildFile; fileRef = 49EEB247A4561D426BB7B643 /* mps_compat.py */; };
 		516664464B2596F1FE655438 /* CleanupSettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B6DE8EC5978EABE9F19700 /* CleanupSettingsTab.swift */; };
 		51EB7CC339712F636D79B3E3 /* CleanupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB57077658E0F96AF0088661 /* CleanupService.swift */; };
 		550C062EC2D3B489CECE984A /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */; };
 		58FB165910929FBB7A21208B /* BatchQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0131F681477EC5B0DC757BE1 /* BatchQueueView.swift */; };
 		5E1170771095781E48C9385F /* SettingsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDBC04AC272DDD358A86F04F /* SettingsService.swift */; };
-		6667FC5984A110E1771D030D /* generate.py in Resources */ = {isa = PBXBuildFile; fileRef = 7597E83755F8E12AEE24AAB2 /* generate.py */; };
 		71A53B4D54D8F8E85B910430 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 869D6915219102C0825431FF /* SettingsView.swift */; };
 		7D95DD5F806B8E222A8946D7 /* GenerationRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = F220CE0703243EAE9C0778FD /* GenerationRecord.swift */; };
 		80B9C8C125501861BCF8251B /* ParameterPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F240E802FE4A9F0FFBBFD0DF /* ParameterPanel.swift */; };
@@ -30,7 +27,6 @@
 		91C7F636E1C9121C00D7F3E9 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */; };
 		A33583324D3E2466D56240C1 /* OnboardingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150C48CA32D45BF9034088F4 /* OnboardingService.swift */; };
 		A78F8068F8B51E4B826A6D6C /* WatchdogErrorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5F577A59CB928133035D3F /* WatchdogErrorSheet.swift */; };
-		AF6A1A19027D43C237DD0370 /* setup.sh in Resources */ = {isa = PBXBuildFile; fileRef = 2E59B3D16865B0F7E4ACC38C /* setup.sh */; };
 		CD9D8DE5CE0D00BAF2CFEF8A /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8524AC5121A0C5DCDBFD1E2 /* SidebarView.swift */; };
 		E221C631830549C5710FAA0B /* InputPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F917E62D31297AF8DF6042 /* InputPanel.swift */; };
 		EA3D5EDA29B4C6F9D1EB57D2 /* GenerationParameters.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDCE7F3725BA9F573B49D551 /* GenerationParameters.swift */; };
@@ -54,18 +50,15 @@
 		17A18603C13E4019F87F423F /* Animations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Animations.swift; sourceTree = "<group>"; };
 		1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		2E59B3D16865B0F7E4ACC38C /* setup.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = setup.sh; sourceTree = "<group>"; };
 		304EFF1C5FD946198516F114 /* TrellisStudioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrellisStudioTests.swift; sourceTree = "<group>"; };
 		32232A13B2B6129105F0D725 /* DaemonManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonManager.swift; sourceTree = "<group>"; };
 		34F917E62D31297AF8DF6042 /* InputPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputPanel.swift; sourceTree = "<group>"; };
 		3800E24E6485AC14E9A44CB0 /* TrellisStudioApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrellisStudioApp.swift; sourceTree = "<group>"; };
-		49EEB247A4561D426BB7B643 /* mps_compat.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = mps_compat.py; sourceTree = "<group>"; };
 		4BB4BAC4257C10AC44BCE4FF /* TrellisStudio.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrellisStudio.entitlements; sourceTree = "<group>"; };
 		52B6DE8EC5978EABE9F19700 /* CleanupSettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupSettingsTab.swift; sourceTree = "<group>"; };
 		544D073603681CEC8A00E943 /* TrellisStudioTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TrellisStudioTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5884350A564B0A77E88BA415 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		62BE4D543A460BD8A811FD71 /* GenerationStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationStatus.swift; sourceTree = "<group>"; };
-		7597E83755F8E12AEE24AAB2 /* generate.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = generate.py; sourceTree = "<group>"; };
 		869D6915219102C0825431FF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B0F327A6E3ABB64075214FA8 /* HistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryService.swift; sourceTree = "<group>"; };
 		BAF8DEC550980B71B79146FF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -78,7 +71,6 @@
 		EE649FE3B3B2E6B5A16F95EC /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		F220CE0703243EAE9C0778FD /* GenerationRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationRecord.swift; sourceTree = "<group>"; };
 		F240E802FE4A9F0FFBBFD0DF /* ParameterPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParameterPanel.swift; sourceTree = "<group>"; };
-		F823D4676DF32F012A5EAF35 /* trellis_daemon.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = trellis_daemon.py; sourceTree = "<group>"; };
 		FD5F577A59CB928133035D3F /* WatchdogErrorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchdogErrorSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -122,17 +114,6 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
-		4B22669263D4A356DC6812C7 /* BackendBundle */ = {
-			isa = PBXGroup;
-			children = (
-				7597E83755F8E12AEE24AAB2 /* generate.py */,
-				2E59B3D16865B0F7E4ACC38C /* setup.sh */,
-				F823D4676DF32F012A5EAF35 /* trellis_daemon.py */,
-				6743D002EB8FBE4C65BDAD4F /* patches */,
-			);
-			path = BackendBundle;
-			sourceTree = "<group>";
-		};
 		509205FF5189254445F1303D /* TrellisStudio */ = {
 			isa = PBXGroup;
 			children = (
@@ -140,7 +121,6 @@
 				5884350A564B0A77E88BA415 /* Info.plist */,
 				4BB4BAC4257C10AC44BCE4FF /* TrellisStudio.entitlements */,
 				3800E24E6485AC14E9A44CB0 /* TrellisStudioApp.swift */,
-				4B22669263D4A356DC6812C7 /* BackendBundle */,
 				621C36A2C15D10D6B642EBF9 /* Models */,
 				2E4291CBB5C4C87B44B59BBE /* Services */,
 				23FAC47DE3340C20ED3B6B83 /* Theme */,
@@ -176,14 +156,6 @@
 			);
 			sourceTree = "<group>";
 		};
-		6743D002EB8FBE4C65BDAD4F /* patches */ = {
-			isa = PBXGroup;
-			children = (
-				49EEB247A4561D426BB7B643 /* mps_compat.py */,
-			);
-			path = patches;
-			sourceTree = "<group>";
-		};
 		6EE32A7D89631F6139F9944D /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -200,8 +172,8 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 4D27B55EDEC5AC2A13638CB2 /* Build configuration list for PBXNativeTarget "TrellisStudio" */;
 			buildPhases = (
-				140DF9E43DAB8D531099C46D /* Copy Backend Scripts */,
 				0E9866A6C9DE5F337E04EA00 /* Sources */,
+				C2B920D1EE035929FEF8C5FD /* Bundle Backend Scripts */,
 				2786E05C916F5D179E676650 /* Resources */,
 			);
 			buildRules = (
@@ -270,17 +242,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				1C89DC874A7E17C02915BC63 /* Assets.xcassets in Resources */,
-				6667FC5984A110E1771D030D /* generate.py in Resources */,
-				47A460F6DFB3E07BCE8C4754 /* mps_compat.py in Resources */,
-				AF6A1A19027D43C237DD0370 /* setup.sh in Resources */,
-				154823626F6A40CECD7B7B0E /* trellis_daemon.py in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		140DF9E43DAB8D531099C46D /* Copy Backend Scripts */ = {
+		C2B920D1EE035929FEF8C5FD /* Bundle Backend Scripts */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -289,14 +257,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Copy Backend Scripts";
+			name = "Bundle Backend Scripts";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "mkdir -p \"$SRCROOT/TrellisStudio/BackendBundle\"\ncp \"$SRCROOT/../../setup.sh\" \"$SRCROOT/TrellisStudio/BackendBundle/\"\ncp -r \"$SRCROOT/../../patches\" \"$SRCROOT/TrellisStudio/BackendBundle/\"\ncp \"$SRCROOT/../../generate.py\" \"$SRCROOT/TrellisStudio/BackendBundle/\"\ncp \"$SRCROOT/../../trellis_daemon.py\" \"$SRCROOT/TrellisStudio/BackendBundle/\"\n";
+			shellScript = "BACKEND_SRC=\"$SRCROOT/TrellisStudio/BackendBundle\"\nBACKEND_DST=\"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Resources/BackendBundle\"\nmkdir -p \"$BACKEND_DST\"\n# Copy from the pre-populated source directory\ncp -R \"$BACKEND_SRC/\" \"$BACKEND_DST/\"\necho \"Copied BackendBundle to $BACKEND_DST\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
