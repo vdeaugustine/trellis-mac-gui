@@ -21,6 +21,7 @@ struct ParameterPanel: View {
                 HStack {
                     TextField("Random Seed", value: $parameters.seed, format: .number)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier(AccessibilityID.seedTextField)
                     Button(action: { parameters.randomizeSeed() }) {
                         Image(systemName: "dice.fill")
                     }
@@ -28,6 +29,7 @@ struct ParameterPanel: View {
                     .padding(6)
                     .background(Color.white.opacity(0.1))
                     .cornerRadius(6)
+                    .accessibilityIdentifier(AccessibilityID.randomizeSeedButton)
                 }
             }
 
@@ -94,6 +96,7 @@ struct ParameterPanel: View {
             .buttonStyle(.plain)
             .keyboardShortcut("g", modifiers: .command)
             .disabled(isGenerateDisabled)
+            .accessibilityIdentifier(AccessibilityID.generateButton)
 
             // Status hint
             if isGenerateDisabled {

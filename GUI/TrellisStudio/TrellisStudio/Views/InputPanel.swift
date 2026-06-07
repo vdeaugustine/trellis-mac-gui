@@ -34,12 +34,14 @@ struct InputPanel: View {
                 .scaledToFit()
                 .cornerRadius(8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityIdentifier(AccessibilityID.imagePreview)
 
             HStack {
                 Text(imageURL.lastPathComponent)
                     .font(.caption)
                     .foregroundColor(Theme.slateGray)
                     .lineLimit(1)
+                    .accessibilityIdentifier(AccessibilityID.imageFilename)
 
                 Spacer()
 
@@ -51,6 +53,7 @@ struct InputPanel: View {
                 .padding(4)
                 .background(Color.white.opacity(0.1))
                 .cornerRadius(4)
+                .accessibilityIdentifier(AccessibilityID.removeImageButton)
             }
         }
     }
@@ -88,6 +91,7 @@ struct InputPanel: View {
             .padding(.vertical, 8)
             .background(Color.white.opacity(0.1))
             .cornerRadius(Theme.CornerRadius.button)
+            .accessibilityIdentifier(AccessibilityID.browseButton)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(isHovering ? Theme.accentIndigo.opacity(0.1) : Color.clear)

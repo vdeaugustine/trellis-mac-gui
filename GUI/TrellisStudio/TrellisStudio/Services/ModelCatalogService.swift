@@ -141,9 +141,12 @@ final class ModelCatalogService: ObservableObject {
                 total += size
             }
 
+            let finalEntries = updated
+            let finalTotal = total
+
             await MainActor.run {
-                self.entries = updated
-                self.totalSizeBytes = total
+                self.entries = finalEntries
+                self.totalSizeBytes = finalTotal
                 self.isScanning = false
             }
         }

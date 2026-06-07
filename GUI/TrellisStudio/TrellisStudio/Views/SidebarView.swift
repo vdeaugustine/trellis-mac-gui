@@ -24,6 +24,7 @@ struct SidebarView: View {
                     .cornerRadius(Theme.CornerRadius.button)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier(AccessibilityID.newGenerationButton)
                 
                 HStack {
                     Text("Batch Mode")
@@ -31,6 +32,7 @@ struct SidebarView: View {
                     Spacer()
                     Toggle("", isOn: $isBatchMode)
                         .toggleStyle(.switch)
+                        .accessibilityIdentifier(AccessibilityID.batchModeToggle)
                 }
             }
             .padding(16)
@@ -42,6 +44,7 @@ struct SidebarView: View {
             TextField("Search history...", text: $searchText)
                 .textFieldStyle(.roundedBorder)
                 .padding(12)
+                .accessibilityIdentifier(AccessibilityID.searchField)
             
             // History List
             List(selection: $selectedItem) {

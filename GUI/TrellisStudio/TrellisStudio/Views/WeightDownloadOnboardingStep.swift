@@ -248,7 +248,7 @@ struct WeightDownloadOnboardingStep: View {
             guard !data.isEmpty,
                   let str = String(data: data, encoding: .utf8) else { return }
             for line in str.components(separatedBy: "\n") where !line.isEmpty {
-                self.parseLine(line)
+                DispatchQueue.main.async { self.parseLine(line) }
             }
         }
 

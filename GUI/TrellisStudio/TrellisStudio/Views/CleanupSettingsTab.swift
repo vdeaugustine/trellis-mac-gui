@@ -173,11 +173,16 @@ struct CleanupSettingsTab: View {
     }
     
     private func refreshSizes() {
+        let backendURL = cleanup.backendURL
+        let generationsURL = cleanup.generationsURL
+        let huggingFaceCacheURL = cleanup.huggingFaceCacheURL
+
         Task.detached {
-            let bSize = cleanup.formattedSize(cleanup.sizeOfDirectory(at: cleanup.backendURL))
-            let gSize = cleanup.formattedSize(cleanup.sizeOfDirectory(at: cleanup.generationsURL))
-            let mSize = cleanup.formattedSize(cleanup.sizeOfDirectory(at: cleanup.huggingFaceCacheURL))
-            
+            let service = CleanupService.shared
+            let bSize = service.formattedSize(service.sizeOfDirectory(at: backendURL))
+            let gSize = service.formattedSize(service.sizeOfDirectory(at: generationsURL))
+            let mSize = service.formattedSize(service.sizeOfDirectory(at: huggingFaceCacheURL))
+
             await MainActor.run {
                 backendSize = bSize
                 generationsSize = gSize

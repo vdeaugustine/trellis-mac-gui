@@ -15,6 +15,7 @@
 		2C623F2967EB94AB9E782415 /* ModelViewerPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E422307C0BAC7A33F440BC5C /* ModelViewerPanel.swift */; };
 		3E9EBFD91A63720F7DA20A88 /* GenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1649441A8794A6B88061C95B /* GenerationService.swift */; };
 		4476DFD1A97A2708AD6329EC /* Animations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A18603C13E4019F87F423F /* Animations.swift */; };
+		7A6B5C4D3E2F1098ABCD7654 /* AccessibilityID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F8E7D6C5B4A3210FEDCBA98 /* AccessibilityID.swift */; };
 		483A9E6EE8EF6E545B13AB9E /* ModelCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8EEC6A1A0D707329B382569 /* ModelCatalogService.swift */; };
 		516664464B2596F1FE655438 /* CleanupSettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B6DE8EC5978EABE9F19700 /* CleanupSettingsTab.swift */; };
 		519B84DBC22A92B290B69707 /* SystemInfoProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41114CF1C029EE90C22907D1 /* SystemInfoProvider.swift */; };
@@ -56,6 +57,7 @@
 		150C48CA32D45BF9034088F4 /* OnboardingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingService.swift; sourceTree = "<group>"; };
 		1649441A8794A6B88061C95B /* GenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationService.swift; sourceTree = "<group>"; };
 		17A18603C13E4019F87F423F /* Animations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Animations.swift; sourceTree = "<group>"; };
+		9F8E7D6C5B4A3210FEDCBA98 /* AccessibilityID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityID.swift; sourceTree = "<group>"; };
 		1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		2E5D0A5CFBDFE49616D49477 /* WeightDownloadOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightDownloadOnboardingStep.swift; sourceTree = "<group>"; };
@@ -115,6 +117,7 @@
 		23FAC47DE3340C20ED3B6B83 /* Theme */ = {
 			isa = PBXGroup;
 			children = (
+				9F8E7D6C5B4A3210FEDCBA98 /* AccessibilityID.swift */,
 				17A18603C13E4019F87F423F /* Animations.swift */,
 				EE649FE3B3B2E6B5A16F95EC /* Theme.swift */,
 			);
@@ -285,10 +288,11 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/BackendBundle/.bundle-complete",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "BACKEND_SRC=\"$SRCROOT/TrellisStudio/BackendBundle\"\nBACKEND_DST=\"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Resources/BackendBundle\"\nmkdir -p \"$BACKEND_DST\"\n# Copy from the pre-populated source directory\ncp -R \"$BACKEND_SRC/\" \"$BACKEND_DST/\"\necho \"Copied BackendBundle to $BACKEND_DST\"\n";
+			shellScript = "BACKEND_SRC=\"$SRCROOT/TrellisStudio/BackendBundle\"\nBACKEND_DST=\"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Resources/BackendBundle\"\nmkdir -p \"$BACKEND_DST\"\n# Copy from the pre-populated source directory\ncp -R \"$BACKEND_SRC/\" \"$BACKEND_DST/\"\ntouch \"$BACKEND_DST/.bundle-complete\"\necho \"Copied BackendBundle to $BACKEND_DST\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -298,6 +302,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4476DFD1A97A2708AD6329EC /* Animations.swift in Sources */,
+				7A6B5C4D3E2F1098ABCD7654 /* AccessibilityID.swift in Sources */,
 				DFE03ECB9E95C68747874F43 /* AppLogger.swift in Sources */,
 				58FB165910929FBB7A21208B /* BatchQueueView.swift in Sources */,
 				51EB7CC339712F636D79B3E3 /* CleanupService.swift in Sources */,

@@ -336,7 +336,8 @@ final class DaemonManager: ObservableObject {
     }
 
     /// Scans error text for gated-access or auth patterns.
-    private static func classifyError(_ message: String) -> DaemonErrorKind {
+    /// Exposed as internal for `@testable` unit testing.
+    static func classifyError(_ message: String) -> DaemonErrorKind {
         let lower = message.lowercased()
 
         // Gated repo pattern: "Access to model <repo> is restricted"

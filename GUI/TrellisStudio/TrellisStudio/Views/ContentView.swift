@@ -117,9 +117,11 @@ struct MainWorkspaceView: View {
                 Circle()
                     .fill(daemonStatusColor)
                     .frame(width: 8, height: 8)
+                    .accessibilityIdentifier(AccessibilityID.daemonStatusDot)
                 Text(daemonStatusText)
                     .font(.caption)
                     .foregroundColor(Theme.slateGray)
+                    .accessibilityIdentifier(AccessibilityID.daemonStatusText)
                     .lineLimit(1)
                 Spacer()
 
@@ -136,6 +138,7 @@ struct MainWorkspaceView: View {
                         .cornerRadius(Theme.CornerRadius.button)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier(AccessibilityID.daemonRestartButton)
                 }
             }
             .padding(.horizontal, 24)
@@ -267,6 +270,7 @@ struct MainWorkspaceView: View {
                     .foregroundColor(.white.opacity(0.7))
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier(AccessibilityID.errorBannerDismiss)
         }
         .padding(12)
         .background(Theme.errorRed.opacity(0.9))
@@ -274,5 +278,6 @@ struct MainWorkspaceView: View {
         .padding(.horizontal, 24)
         .padding(.top, 8)
         .transition(.move(edge: .top).combined(with: .opacity))
+        .accessibilityIdentifier(AccessibilityID.errorBanner)
     }
 }
