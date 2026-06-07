@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 
+from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QHBoxLayout, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter,
     QVBoxLayout, QWidget,
@@ -12,26 +13,37 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from . import cli_args
-from .generation_worker import GenerationWorker
+from . import error_classifier
+from . import output_store
 from . import progress_parser
+from .generation_worker import GenerationWorker
+from .settings import AppSettings
+from .widgets.error_panel import ErrorPanel
 from .widgets.image_drop_area import ImageDropArea
 from .widgets.parameter_panel import ParameterPanel
 from .widgets.progress_panel import ProgressPanel
 from .widgets.results_panel import ResultsPanel
+from .widgets.settings_dialog import SettingsDialog
+from .widgets.storage_panel import StoragePanel
 
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Trellis Studio (Python)")
-        self.resize(960, 680)
+        self.resize(980, 720)
 
+        self._settings = AppSettings()
         self._worker = GenerationWorker(self)
         self._connect_worker()
         self._output_dir: str | None = None
         self._running = False
+        # One-time advisory hints we don't want to repeat every run.
+        self._heavy_combo_ack = False
+        self._first_run_hint_shown = False
 
         self._build_ui()
+        self._build_menu()
         self._update_generate_enabled()
 
     # ------------------------------------------------------------------- UI
@@ -53,13 +65,17 @@ class MainWindow(QMainWindow):
         self.generate_btn.clicked.connect(self._on_generate_clicked)
         left_layout.addWidget(self.generate_btn)
 
-        # Right column: progress + results (scrollable).
+        # Right column: progress + error + results + storage (scrollable).
         right = QWidget()
         right_layout = QVBoxLayout(right)
         self.progress = ProgressPanel()
         right_layout.addWidget(self.progress)
+        self.error_panel = ErrorPanel()
+        right_layout.addWidget(self.error_panel)
         self.results = ResultsPanel()
         right_layout.addWidget(self.results)
+        self.storage = StoragePanel(self._settings_output_base)
+        right_layout.addWidget(self.storage)
         right_layout.addStretch(1)
 
         right_scroll = QScrollArea()
@@ -76,6 +92,17 @@ class MainWindow(QMainWindow):
         layout.addWidget(splitter)
         self.setCentralWidget(container)
 
+    def _build_menu(self) -> None:
+        settings_action = QAction("Settings…", self)
+        settings_action.setShortcut(QKeySequence("Ctrl+,"))
+        settings_action.triggered.connect(self._open_settings)
+        # On macOS this lands under the app menu automatically (role-based).
+        menu = self.menuBar().addMenu("Trellis")
+        menu.addAction(settings_action)
+
+    def _settings_output_base(self) -> str:
+        return self._settings.output_base
+
     # -------------------------------------------------------------- worker
 
     def _connect_worker(self) -> None:
@@ -87,6 +114,11 @@ class MainWindow(QMainWindow):
         self._worker.failed_to_start.connect(self._on_failed_to_start)
 
     # --------------------------------------------------------------- events
+
+    def _open_settings(self) -> None:
+        dialog = SettingsDialog(self._settings, self)
+        if dialog.exec():
+            self.storage.refresh()
 
     def _on_image_selected(self, _path: str) -> None:
         self._update_generate_enabled()
@@ -111,14 +143,72 @@ class MainWindow(QMainWindow):
         if not image_path:
             return
 
-        self._output_dir = cli_args.make_output_dir()
+        if not self._run_preflight(image_path):
+            return
+
+        output_base = self._settings.output_base
+        self._output_dir = cli_args.make_output_dir(base=output_base)
         os.makedirs(self._output_dir, exist_ok=True)
         argv = cli_args.build_argv(image_path, self.params.params(), self._output_dir)
 
-        hf_token = os.environ.get("HF_TOKEN") or None
-
         self._enter_running_state()
-        self._worker.start(argv, hf_token=hf_token)
+        self._worker.start(
+            argv,
+            hf_token=self._settings.effective_hf_token(),
+            watchdog_safe=self._settings.watchdog_safe_mode,
+        )
+
+    def _run_preflight(self, image_path: str) -> bool:
+        """Cheap up-front checks. Returns False to abort the run."""
+        # Hard block: corrupt / unreadable image (catches it before ~100s load).
+        image_problem = cli_args.validate_image(image_path)
+        if image_problem:
+            QMessageBox.critical(self, "Invalid image", image_problem)
+            return False
+
+        params = self.params.params()
+
+        # Advisory: free disk space.
+        disk = cli_args.check_disk_space(self._settings.output_base)
+        if not disk.ok:
+            free_txt = (output_store.human_size(disk.free_bytes)
+                        if disk.free_bytes >= 0 else "unknown")
+            extra = (" The first run also downloads ~15 GB of model weights."
+                     if disk.needs_weights else "")
+            if not self._confirm(
+                    "Low disk space",
+                    f"Only {free_txt} free on the output volume.{extra}\n\n"
+                    "Continue anyway?"):
+                return False
+
+        # Advisory: heaviest combo is most likely to OOM / hit the watchdog.
+        if cli_args.is_heavy_combo(params) and not self._heavy_combo_ack:
+            if not self._confirm(
+                    "Heavy settings",
+                    "1024 Cascade + 2048 texture is the heaviest setting "
+                    "(~18 GB peak memory) and may run out of memory or hit the "
+                    "GPU watchdog on machines with under 24 GB.\n\n"
+                    "Continue with these settings?"):
+                return False
+            self._heavy_combo_ack = True
+
+        # Advisory: first-run gated weights need a token.
+        if (not self._first_run_hint_shown
+                and not self._settings.effective_hf_token()
+                and cli_args.hf_cache_looks_empty()):
+            self._first_run_hint_shown = True
+            QMessageBox.information(
+                self, "Hugging Face token",
+                "No Hugging Face token is set and the model weights aren't "
+                "cached yet. The gated weights (TRELLIS.2-4B, DINOv3, RMBG-2.0) "
+                "need a token — add one in Settings (Cmd+,) if the download "
+                "fails with an access error.")
+        return True
+
+    def _confirm(self, title: str, text: str) -> bool:
+        return QMessageBox.question(
+            self, title, text,
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No) == QMessageBox.Yes
 
     # --------------------------------------------------- stream → progress
 
@@ -134,7 +224,6 @@ class MainWindow(QMainWindow):
         tqdm = progress_parser.parse_tqdm(line)
         if tqdm:
             current, total = tqdm
-            # Layer an in-phase hint onto the current stage label.
             base = self.progress.stage_label.text().split("  (")[0]
             self.progress.set_stage(f"{base}  ({current}/{total})")
 
@@ -145,20 +234,15 @@ class MainWindow(QMainWindow):
         self.progress.set_stage("Done")
         outputs = cli_args.resolve_outputs(self._output_dir or "")
         self.results.show_results(self._output_dir or "", outputs)
+        self.storage.refresh()
         self._exit_running_state()
 
-    def _on_finished_err(self, code: int, tail: str) -> None:
-        if code == 1:
-            title, msg = "Image not found", \
-                "generate.py could not find the input image."
-        elif code == 2:
-            title = "GPU watchdog"
-            msg = ("The macOS GPU watchdog killed the generation.\n\n" + tail)
-        else:
-            title = f"Generation failed (exit code {code})"
-            msg = tail or "See the log for details."
-        self.progress.set_stage(f"Failed (exit {code})")
-        QMessageBox.critical(self, title, msg)
+    def _on_finished_err(self, code: int, tail: str,
+                         stdout_tail: str, stderr_tail: str) -> None:
+        info = error_classifier.classify(code, stdout_tail, stderr_tail)
+        self.progress.set_stage(f"Failed: {info.title}")
+        self.error_panel.show_error(info, tail)
+        self.storage.refresh()
         self._exit_running_state()
 
     def _on_cancelled(self) -> None:
@@ -177,6 +261,7 @@ class MainWindow(QMainWindow):
         self.params.set_enabled(False)
         self.image_area.setEnabled(False)
         self.results.hide_results()
+        self.error_panel.hide_error()
         self.progress.reset()
         self.generate_btn.setText("Cancel")
         self._update_generate_enabled()

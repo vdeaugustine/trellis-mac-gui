@@ -5,11 +5,15 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QDragEnterEvent, QDropEvent, QPixmap
+from PySide6.QtCore import Qt, QSize, Signal
+from PySide6.QtGui import QDragEnterEvent, QDropEvent, QImageReader, QPixmap
 from PySide6.QtWidgets import QFileDialog, QLabel, QSizePolicy
 
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".heic", ".tif", ".tiff"}
+
+# Cap the retained preview pixmap. The full-resolution source file is still what
+# we pass to the CLI, so this only bounds GUI memory — quality is unaffected.
+_PREVIEW_MAX_EDGE = 2048
 
 
 def _is_image(path: str) -> bool:
@@ -80,14 +84,39 @@ class ImageDropArea(QLabel):
     # ----------------------------------------------------------------- model
 
     def set_image(self, path: str) -> None:
-        pixmap = QPixmap(path)
-        if pixmap.isNull():
+        pixmap = self._load_capped_pixmap(path)
+        if pixmap is None or pixmap.isNull():
             self.setText(f"Could not load image:\n{os.path.basename(path)}")
             return
         self._path = path
         self._pixmap = pixmap
         self._render()
         self.image_selected.emit(path)
+
+    @staticmethod
+    def _load_capped_pixmap(path: str) -> Optional[QPixmap]:
+        """Decode the image at a bounded resolution so a huge source file never
+        balloons GUI memory. QImageReader.setScaledSize decodes directly to the
+        target size instead of loading the full image first."""
+        reader = QImageReader(path)
+        reader.setAutoTransform(True)
+        size = reader.size()  # may be invalid for some formats
+        if size.isValid() and (size.width() > _PREVIEW_MAX_EDGE
+                               or size.height() > _PREVIEW_MAX_EDGE):
+            scaled = size.scaled(_PREVIEW_MAX_EDGE, _PREVIEW_MAX_EDGE,
+                                 Qt.KeepAspectRatio)
+            reader.setScaledSize(scaled)
+        image = reader.read()
+        if image.isNull():
+            # Fall back to a direct load (e.g. formats QImageReader can't size).
+            pm = QPixmap(path)
+            return pm if not pm.isNull() else None
+        pm = QPixmap.fromImage(image)
+        # Guard against formats that ignored the scaled size.
+        if max(pm.width(), pm.height()) > _PREVIEW_MAX_EDGE:
+            pm = pm.scaled(QSize(_PREVIEW_MAX_EDGE, _PREVIEW_MAX_EDGE),
+                           Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        return pm
 
     def _render(self) -> None:
         if self._pixmap is None:

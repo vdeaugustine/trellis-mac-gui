@@ -4,10 +4,15 @@ frames, writes empty output files, and exits 0. Lets the GUI be exercised end
 to end in seconds without a GPU run.
 
 Accepts the same argv as generate.py (only the bits the GUI sends). Honors a few
-env toggles to simulate failure paths:
+env toggles to simulate failure / test paths:
   MOCK_EXIT_CODE=2   -> print the watchdog help text and exit 2
   MOCK_EXIT_CODE=1   -> behave like a missing image (exit 1)
   MOCK_SLEEP=0.02    -> per-step sleep (default 0.02s) to keep runs fast
+  MOCK_FAIL=<kind>   -> emit the matching error signature and exit non-zero,
+                        where <kind> is one of: mps_oom, hf_gated, disk_full,
+                        no_network, watchdog, oom_killed
+  MOCK_ECHO_ENV=1    -> print HF_TOKEN/MTL_CAPTURE_ENABLED to stdout (for tests)
+  MOCK_HUGE_LINE=1   -> write a multi-MB stderr chunk with no newline (buffer cap)
 """
 
 import argparse
@@ -27,6 +32,19 @@ Workarounds, cheapest first:
   3. SPARSE_CONV_BACKEND=none python generate.py ...
 """
 
+# stderr signature + exit code for each simulated failure kind.
+MOCK_FAILURES = {
+    "mps_oom": ("RuntimeError: MPS backend out of memory (MPS allocated 18.00 GB, "
+                "other allocations 2.00 GB, max allowed 20.00 GB)", 1),
+    "hf_gated": ("huggingface_hub.utils._errors.GatedRepoError: 403 Client Error. "
+                 "Cannot access gated repo for url .../TRELLIS.2-4B", 1),
+    "disk_full": ("OSError: [Errno 28] No space left on device", 1),
+    "no_network": ("requests.exceptions.ConnectionError: Failed to resolve "
+                   "'huggingface.co' (Max retries exceeded)", 1),
+    "watchdog": ("IndexError: max(): Expected reduction dim 0 to have non-zero size", 2),
+    "oom_killed": ("", 137),
+}
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -43,6 +61,24 @@ def main() -> None:
 
     exit_code = int(os.environ.get("MOCK_EXIT_CODE", "0"))
     sleep = float(os.environ.get("MOCK_SLEEP", "0.02"))
+
+    if os.environ.get("MOCK_ECHO_ENV") == "1":
+        print(f"ENV HF_TOKEN={os.environ.get('HF_TOKEN', '')}", flush=True)
+        print(f"ENV MTL_CAPTURE_ENABLED={os.environ.get('MTL_CAPTURE_ENABLED', '')}",
+              flush=True)
+
+    if os.environ.get("MOCK_HUGE_LINE") == "1":
+        # ~2 MB with no newline — exercises the worker's buffer cap.
+        sys.stderr.write("X" * (2 * 1024 * 1024))
+        sys.stderr.flush()
+
+    fail = os.environ.get("MOCK_FAIL")
+    if fail in MOCK_FAILURES:
+        message, code = MOCK_FAILURES[fail]
+        if message:
+            sys.stderr.write(message + "\n")
+            sys.stderr.flush()
+        sys.exit(code)
 
     if exit_code == 1:
         print(f"Error: {args.image} not found")
