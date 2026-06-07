@@ -42,14 +42,9 @@ final class DaemonTCPConnection {
         input.open()
         output.open()
 
-        // Wait briefly for connection to establish
-        let deadline = Date().addingTimeInterval(2.0)
-        while input.streamStatus == .opening && Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.05)
-        }
-
-        guard input.streamStatus == .open else {
-            log.error("TCP connection failed — stream status: \(input.streamStatus.rawValue)", context: "Daemon")
+        guard input.streamStatus == .open, output.streamStatus == .open else {
+            let status = "input=\(input.streamStatus.rawValue) output=\(output.streamStatus.rawValue)"
+            log.error("TCP connection failed — stream status: \(status)", context: "Daemon")
             input.close()
             output.close()
             return false
