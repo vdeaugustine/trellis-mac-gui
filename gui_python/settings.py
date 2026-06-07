@@ -23,6 +23,7 @@ _KEY_OUTPUT_BASE = "output_base"
 _KEY_WATCHDOG_SAFE = "watchdog_safe_mode"   # legacy bool key (migrated)
 _KEY_WATCHDOG_MODE = "watchdog_mode"        # "auto" | "on" | "off"
 _KEY_SPARSE_CONV_NONE = "sparse_conv_none"
+_KEY_FAST_MODE = "fast_mode"
 
 WATCHDOG_MODES = ("auto", "on", "off")
 
@@ -88,3 +89,16 @@ class AppSettings:
     @sparse_conv_none.setter
     def sparse_conv_none(self, value: bool) -> None:
         self._s.setValue(_KEY_SPARSE_CONV_NONE, bool(value))
+
+    # ---- Experimental fp16 fast mode (TRELLIS_FAST=1) ----------------------
+
+    @property
+    def fast_mode(self) -> bool:
+        val = self._s.value(_KEY_FAST_MODE, False)
+        if isinstance(val, str):
+            return val.lower() in ("1", "true", "yes")
+        return bool(val)
+
+    @fast_mode.setter
+    def fast_mode(self, value: bool) -> None:
+        self._s.setValue(_KEY_FAST_MODE, bool(value))

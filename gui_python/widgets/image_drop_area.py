@@ -90,7 +90,7 @@ class ImageDropArea(QLabel):
             return
         self._path = path
         self._pixmap = pixmap
-        self._render()
+        self._render(force=True)   # always draw a freshly selected image
         self.image_selected.emit(path)
 
     @staticmethod
@@ -118,11 +118,20 @@ class ImageDropArea(QLabel):
                            Qt.KeepAspectRatio, Qt.SmoothTransformation)
         return pm
 
-    def _render(self) -> None:
+    def _render(self, force: bool = False) -> None:
         if self._pixmap is None:
             return
+        size = self.size()
+        # Skip the (expensive) SmoothTransformation rescale on sub-pixel-ish
+        # resize deltas during a window drag — only redraw on meaningful change.
+        last = getattr(self, "_last_render_size", None)
+        if (not force and last is not None
+                and abs(size.width() - last.width()) < 16
+                and abs(size.height() - last.height()) < 16):
+            return
+        self._last_render_size = QSize(size)
         scaled = self._pixmap.scaled(
-            self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.setPixmap(scaled)
 
     def resizeEvent(self, event) -> None:  # noqa: N802

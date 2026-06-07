@@ -32,6 +32,7 @@ class GenerationParams(TypedDict, total=False):
     texture_size: int           # 512 | 1024 | 2048
     no_texture: bool
     steps: Optional[int]        # None => omit --steps (use pipeline default)
+    output_obj: bool            # False => pass --no-obj (skip the .obj file)
 
 
 def default_output_base() -> str:
@@ -79,6 +80,10 @@ def build_argv(image_path: str,
     steps = params.get("steps")
     if steps is not None:
         argv += ["--steps", str(steps)]
+
+    # output_obj defaults to True (keep the .obj). Only emit the flag to skip.
+    if params.get("output_obj", True) is False:
+        argv.append("--no-obj")
 
     return argv
 

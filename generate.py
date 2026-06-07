@@ -63,6 +63,11 @@ def main():
         "--steps", type=int, default=None,
         help="Override sampler steps for all three flow phases (default: pipeline JSON, usually 12)",
     )
+    parser.add_argument(
+        "--no-obj", action="store_true",
+        help="Skip writing the .obj file (the .glb already carries the mesh). "
+             "Saves time and disk on large meshes.",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.image):
@@ -84,6 +89,10 @@ def main():
     # Move to MPS
     pipeline.to(torch.device("mps"))
     print("Device: MPS")
+
+    # Opt-in fp16 fast mode (TRELLIS_FAST=1); no-op otherwise.
+    from perf_opts import apply_fast_mode
+    apply_fast_mode(pipeline)
 
     # Load image
     img = PILImage.open(args.image)
@@ -287,28 +296,37 @@ def main():
         tm.export(glb_path)
         print(f"Saved: {glb_path}")
 
-    # Also save OBJ (vectorized — avoids millions of Python f-string calls)
-    obj_path = f"{args.output}.obj"
-    with open(obj_path, "w") as f:
-        v_lines = np.column_stack([
-            np.full(len(verts), 'v'),
-            verts[:, 0].astype(str),
-            verts[:, 1].astype(str),
-            verts[:, 2].astype(str),
-        ])
-        f.write('\n'.join(' '.join(row) for row in v_lines))
-        f.write('\n')
-        f_lines = np.column_stack([
-            np.full(len(faces), 'f'),
-            (faces[:, 0] + 1).astype(str),
-            (faces[:, 1] + 1).astype(str),
-            (faces[:, 2] + 1).astype(str),
-        ])
-        f.write('\n'.join(' '.join(row) for row in f_lines))
-        f.write('\n')
-    print(f"Saved: {obj_path}")
+    # Also save OBJ unless suppressed (the GLB already carries the mesh).
+    if args.no_obj:
+        print("Skipping OBJ (--no-obj)")
+    else:
+        obj_path = f"{args.output}.obj"
+        _write_obj(obj_path, verts, faces)
+        print(f"Saved: {obj_path}")
 
     print(f"\nTotal time: {t_gen:.1f}s generation + baking")
+
+
+def _write_obj(obj_path, verts, faces):
+    """Write a Wavefront OBJ using vectorized numpy string ops.
+
+    Builds each line with C-level np.char.add and joins once, avoiding the
+    per-row Python `' '.join(row)` generator that dominated the previous writer
+    on 1M+ vertex meshes.
+    """
+    def _rows(tag, cols):
+        out = np.full(len(cols[0]), tag, dtype="<U1").astype("U64")
+        for col in cols:
+            out = np.char.add(np.char.add(out, " "), col.astype(str))
+        return out
+
+    v_rows = _rows("v", [verts[:, 0], verts[:, 1], verts[:, 2]])
+    f_rows = _rows("f", [faces[:, 0] + 1, faces[:, 1] + 1, faces[:, 2] + 1])
+    with open(obj_path, "w") as f:
+        f.write("\n".join(v_rows.tolist()))
+        f.write("\n")
+        f.write("\n".join(f_rows.tolist()))
+        f.write("\n")
 
 
 if __name__ == "__main__":

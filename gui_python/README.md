@@ -45,6 +45,8 @@ export HF_TOKEN=hf_...
 - **Geometry only**: skip texture baking (`--no-texture`); disables texture size.
 - **Texture size**: 512 / 1024 / 2048 px (`--texture-size`).
 - **Override steps**: optional `--steps` override (off = pipeline default).
+- **Also export .obj**: on by default; uncheck to write only the `.glb` (the GLB
+  already carries the mesh), which is faster and saves disk on large meshes.
 - **Presets**: Fast Draft / Balanced / Max Quality.
 - **Generate / Cancel**: one button; becomes Cancel while running.
 
@@ -68,6 +70,27 @@ A small, curated settings dialog:
   external display is attached — so high-res "just works" without fiddling.
 - **Fallback backend** — opt-in `SPARSE_CONV_BACKEND=none` (slower path) for
   stubborn watchdog cases.
+- **Fast mode (experimental)** — opt-in `TRELLIS_FAST=1`, which casts the
+  flow/DiT torsos to fp16 (Apple GPUs' native fast type; the decoders already
+  ship fp16). Roughly speeds up the sampling phases but changes GPU numerics, so
+  **validate output quality** on a few renders before relying on it. If a render
+  produces a broken/empty mesh with this on, turn it off.
+
+## Performance notes
+
+These wins are applied and safe (no change to render output):
+
+- The subprocess gets `OMP_NUM_THREADS` / `VECLIB_MAXIMUM_THREADS` /
+  `MKL_NUM_THREADS` / `NUMEXPR_NUM_THREADS` capped to *(cores − 2)* so the
+  parallel CPU phases (xatlas UV unwrap, simplification, numpy/scipy in the
+  texture bake) don't oversubscribe the cores the GPU work and UI need. Any
+  value you export yourself is respected.
+- The OBJ writer is vectorized (~1.5× faster on large meshes); skip it entirely
+  with the "Also export .obj" toggle.
+- The GUI log is batched (flushed ~10×/s instead of per line), the image preview
+  skips needless rescales during window drags, the output-size scan runs off the
+  UI thread, and the display probe is pre-warmed — so the UI stays smooth during
+  long renders and the first Generate click doesn't stall.
 
 ## Hardware-aware memory guidance
 

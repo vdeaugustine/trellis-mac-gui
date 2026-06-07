@@ -57,6 +57,12 @@ class SettingsDialog(QDialog):
         self.sparse_check.setChecked(settings.sparse_conv_none)
         form.addRow("", self.sparse_check)
 
+        # Experimental fp16 fast mode.
+        self.fast_check = QCheckBox(
+            "Fast mode (experimental fp16 — faster, validate output quality)")
+        self.fast_check.setChecked(settings.fast_mode)
+        form.addRow("", self.fast_check)
+
         layout.addLayout(form)
 
         hint = QLabel(
@@ -86,6 +92,7 @@ class SettingsDialog(QDialog):
             self._settings.output_base = base
         self._settings.watchdog_mode = self.watchdog_combo.currentData()
         self._settings.sparse_conv_none = self.sparse_check.isChecked()
+        self._settings.fast_mode = self.fast_check.isChecked()
         self.accept()
 
 

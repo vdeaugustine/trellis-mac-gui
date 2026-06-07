@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 
+from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import (
     QGroupBox, QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout,
     QWidget,
@@ -15,12 +16,32 @@ from .. import output_store
 KEEP_LAST_N = 5
 
 
+class _SizeScanWorker(QObject):
+    """Runs the (potentially slow) os.walk size scan off the UI thread."""
+
+    done = Signal(int, int)  # (run_count, total_bytes)
+
+    def __init__(self, base: str) -> None:
+        super().__init__()
+        self._base = base
+
+    def run(self) -> None:
+        runs = output_store.list_runs(self._base)
+        self.done.emit(len(runs), sum(r.size for r in runs))
+
+
 class StoragePanel(QWidget):
-    """Displays gui_output size and a guarded 'Clean old runs' action."""
+    """Displays gui_output size and a guarded 'Clean old runs' action.
+
+    The size scan walks every output file, which can be slow with many large
+    runs, so it runs on a background thread and the label updates when it lands.
+    """
 
     def __init__(self, output_base_getter, parent=None) -> None:
         super().__init__(parent)
         self._output_base_getter = output_base_getter
+        self._thread: QThread | None = None
+        self._scan: _SizeScanWorker | None = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -44,12 +65,42 @@ class StoragePanel(QWidget):
         self.refresh()
 
     def refresh(self) -> None:
+        """Kick off a background size scan; the label updates when it finishes."""
+        if self._thread is not None:   # a scan is already running; skip
+            return
         base = self._output_base_getter()
-        runs = output_store.list_runs(base)
-        total = sum(r.size for r in runs)
+        self.size_label.setText("Calculating output size…")
+
+        thread = QThread(self)
+        scan = _SizeScanWorker(base)
+        scan.moveToThread(thread)
+        thread.started.connect(scan.run)
+        # Update the UI on the worker's signal (delivered to the UI thread since
+        # this QObject lives there). Then tear the thread down safely via its own
+        # finished signal — never call wait() from inside the slot.
+        scan.done.connect(lambda n, t: self._on_scan_done(base, n, t))
+        scan.done.connect(thread.quit)
+        thread.finished.connect(scan.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(self._on_thread_finished)
+        self._thread = thread
+        self._scan = scan
+        thread.start()
+
+    def _on_scan_done(self, base: str, count: int, total: int) -> None:
         self.size_label.setText(
-            f"{len(runs)} run(s), {output_store.human_size(total)} in\n{base}")
-        self.clean_btn.setEnabled(len(runs) > KEEP_LAST_N)
+            f"{count} run(s), {output_store.human_size(total)} in\n{base}")
+        self.clean_btn.setEnabled(count > KEEP_LAST_N)
+
+    def _on_thread_finished(self) -> None:
+        self._thread = None
+        self._scan = None
+
+    def shutdown(self) -> None:
+        """Block until any in-flight size scan finishes (call on window close)."""
+        if self._thread is not None:
+            self._thread.quit()
+            self._thread.wait(2000)
 
     def _open_folder(self) -> None:
         subprocess.run(["open", self._output_base_getter()], check=False)

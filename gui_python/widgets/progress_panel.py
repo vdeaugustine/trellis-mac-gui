@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QLabel, QPlainTextEdit, QProgressBar, QPushButton, QVBoxLayout, QWidget,
 )
 
 _LOG_MAX_BLOCKS = 2000
+# Flush buffered log lines at most this often. A multi-minute render emits many
+# tqdm frames; appending each one separately forces a QPlainTextEdit re-layout
+# per line and janks the UI. Buffering + a single appendPlainText per tick keeps
+# the panel responsive without losing any output.
+_LOG_FLUSH_MS = 100
 
 
 class ProgressPanel(QWidget):
@@ -43,12 +49,19 @@ class ProgressPanel(QWidget):
 
         self._max_value = 0
 
+        # Buffered log: lines accumulate and flush on a timer (see append_log).
+        self._log_buffer: list[str] = []
+        self._log_timer = QTimer(self)
+        self._log_timer.setInterval(_LOG_FLUSH_MS)
+        self._log_timer.timeout.connect(self._flush_log)
+
     # ----------------------------------------------------------------- state
 
     def reset(self) -> None:
         self.bar.setValue(0)
         self._max_value = 0
         self.set_stage("Starting…")
+        self._log_buffer.clear()
         self.log.clear()
 
     def set_stage(self, text: str) -> None:
@@ -63,9 +76,23 @@ class ProgressPanel(QWidget):
     def complete(self) -> None:
         self._max_value = 1000
         self.bar.setValue(1000)
+        self._flush_log()
 
     def append_log(self, line: str) -> None:
-        self.log.appendPlainText(line)
+        """Queue a log line; the buffer is flushed on a timer (coalesced)."""
+        self._log_buffer.append(line)
+        if not self._log_timer.isActive():
+            self._log_timer.start()
+
+    def flush_log(self) -> None:
+        """Flush any buffered log lines immediately (e.g. on run completion)."""
+        self._flush_log()
+
+    def _flush_log(self) -> None:
+        if self._log_buffer:
+            self.log.appendPlainText("\n".join(self._log_buffer))
+            self._log_buffer.clear()
+        self._log_timer.stop()
 
     # ---------------------------------------------------------------- toggle
 

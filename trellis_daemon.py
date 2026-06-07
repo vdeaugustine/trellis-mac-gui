@@ -68,6 +68,25 @@ def send_response(data):
     print(json.dumps({"response": data}))
     sys.stdout.flush()
 
+
+def write_obj(obj_path, verts, faces):
+    """Vectorized Wavefront OBJ writer (C-level np.char; one join)."""
+    import numpy as np
+
+    def _rows(tag, cols):
+        out = np.full(len(cols[0]), tag, dtype="<U1").astype("U64")
+        for col in cols:
+            out = np.char.add(np.char.add(out, " "), col.astype(str))
+        return out
+
+    v_rows = _rows("v", [verts[:, 0], verts[:, 1], verts[:, 2]])
+    f_rows = _rows("f", [faces[:, 0] + 1, faces[:, 1] + 1, faces[:, 2] + 1])
+    with open(obj_path, "w") as f:
+        f.write("\n".join(v_rows.tolist()))
+        f.write("\n")
+        f.write("\n".join(f_rows.tolist()))
+        f.write("\n")
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true", help="Run in mock mode without loading models")
@@ -86,6 +105,10 @@ def main():
             from trellis2.pipelines.trellis2_image_to_3d import Trellis2ImageTo3DPipeline
             pipeline = Trellis2ImageTo3DPipeline.from_pretrained("microsoft/TRELLIS.2-4B")
             pipeline.to(torch.device("mps"))
+            # Opt-in fp16 fast mode (TRELLIS_FAST=1); no-op otherwise.
+            from perf_opts import apply_fast_mode
+            apply_fast_mode(pipeline, log=lambda m: send_response(
+                {"stage": "loadingPipeline", "status": "info", "message": m}))
             send_response({"stage": "loadingPipeline", "status": "done"})
         except Exception as e:
             send_response({"stage": "failed", "reason": "load_error", "message": str(e)})
@@ -124,6 +147,8 @@ def main():
                 no_texture = cmd_payload.get("no_texture", False)
                 output_dir = cmd_payload.get("output_dir", ".")
                 steps = cmd_payload.get("steps")
+                # Default True keeps existing behavior; GUI sends False to skip.
+                output_obj = cmd_payload.get("output_obj", True)
                 
                 if not args.dry_run and (not image_path or not os.path.exists(image_path)):
                     send_response({"stage": "failed", "reason": "missing_image", "message": f"Image not found: {image_path}"})
@@ -314,26 +339,12 @@ def main():
                         tm = trimesh.Trimesh(vertices=verts, faces=faces)
                         tm.export(glb_path)
                         
-                    # Save OBJ (vectorized — avoids millions of Python f-string calls)
-                    import numpy as np
-                    with open(obj_path, "w") as f:
-                        v_lines = np.column_stack([
-                            np.full(len(verts), 'v'),
-                            verts[:, 0].astype(str),
-                            verts[:, 1].astype(str),
-                            verts[:, 2].astype(str),
-                        ])
-                        f.write('\n'.join(' '.join(row) for row in v_lines))
-                        f.write('\n')
-                        f_lines = np.column_stack([
-                            np.full(len(faces), 'f'),
-                            (faces[:, 0] + 1).astype(str),
-                            (faces[:, 1] + 1).astype(str),
-                            (faces[:, 2] + 1).astype(str),
-                        ])
-                        f.write('\n'.join(' '.join(row) for row in f_lines))
-                        f.write('\n')
-                            
+                    # Save OBJ unless suppressed (the GLB already carries the mesh).
+                    if output_obj:
+                        write_obj(obj_path, verts, faces)
+                    else:
+                        obj_path = None
+
                     t_total = time.time() - t0
                     send_response({
                         "stage": "complete",

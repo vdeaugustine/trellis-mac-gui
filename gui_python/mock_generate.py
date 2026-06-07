@@ -57,6 +57,7 @@ def main() -> None:
                         choices=[512, 1024, 2048])
     parser.add_argument("--no-texture", action="store_true")
     parser.add_argument("--steps", type=int, default=None)
+    parser.add_argument("--no-obj", action="store_true")
     args = parser.parse_args()
 
     exit_code = int(os.environ.get("MOCK_EXIT_CODE", "0"))
@@ -66,6 +67,8 @@ def main() -> None:
         print(f"ENV HF_TOKEN={os.environ.get('HF_TOKEN', '')}", flush=True)
         print(f"ENV MTL_CAPTURE_ENABLED={os.environ.get('MTL_CAPTURE_ENABLED', '')}",
               flush=True)
+        print(f"ENV TRELLIS_FAST={os.environ.get('TRELLIS_FAST', '')}", flush=True)
+        print(f"ENV OMP_NUM_THREADS={os.environ.get('OMP_NUM_THREADS', '')}", flush=True)
 
     if os.environ.get("MOCK_HUGE_LINE") == "1":
         # ~2 MB with no newline — exercises the worker's buffer cap.
@@ -129,9 +132,12 @@ def main() -> None:
     with open(glb_path, "w") as f:
         f.write("mock glb")
     out(f"Saved: {glb_path}")
-    with open(obj_path, "w") as f:
-        f.write("mock obj")
-    out(f"Saved: {obj_path}")
+    if args.no_obj:
+        out("Skipping OBJ (--no-obj)")
+    else:
+        with open(obj_path, "w") as f:
+            f.write("mock obj")
+        out(f"Saved: {obj_path}")
 
     out("\nTotal time: 1.0s generation + baking")
     sys.exit(0)

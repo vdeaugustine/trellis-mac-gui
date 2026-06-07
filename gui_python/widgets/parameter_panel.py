@@ -89,6 +89,12 @@ class ParameterPanel(QWidget):
         steps_row.addWidget(self.steps_spin, 1)
         form.addRow("Steps", _wrap(steps_row))
 
+        # The .glb already carries the mesh; the extra .obj is optional and slow
+        # to write on large meshes. Default on to preserve existing behavior.
+        self.obj_check = QCheckBox("Also export .obj")
+        self.obj_check.setChecked(True)
+        form.addRow("", self.obj_check)
+
         layout.addWidget(group)
 
         # Emit params_changed when any param-affecting control changes.
@@ -98,6 +104,7 @@ class ParameterPanel(QWidget):
         self.steps_check.toggled.connect(self._emit_changed)
         self.steps_spin.valueChanged.connect(self._emit_changed)
         self.seed_spin.valueChanged.connect(self._emit_changed)
+        self.obj_check.toggled.connect(self._emit_changed)
 
     # --------------------------------------------------------------- actions
 
@@ -141,6 +148,7 @@ class ParameterPanel(QWidget):
             texture_size=self.texture_combo.currentData(),
             no_texture=self.no_texture_check.isChecked(),
             steps=self.steps_spin.value() if self.steps_check.isChecked() else None,
+            output_obj=self.obj_check.isChecked(),
         )
 
     def set_enabled(self, enabled: bool) -> None:

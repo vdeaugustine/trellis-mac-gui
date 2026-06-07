@@ -78,7 +78,8 @@ class GenerationWorker(QObject):
     # ------------------------------------------------------------------ start
 
     def start(self, argv: list[str], hf_token: Optional[str] = None,
-              watchdog_safe: bool = False, sparse_conv_none: bool = False) -> None:
+              watchdog_safe: bool = False, sparse_conv_none: bool = False,
+              fast_mode: bool = False) -> None:
         # Re-entrancy guard: never spawn a second generation while one runs —
         # two GPU processes contend for MPS memory and are unsafe (README).
         if self.is_running():
@@ -99,7 +100,7 @@ class GenerationWorker(QObject):
         proc.setArguments([target_script(), *argv])
         proc.setWorkingDirectory(REPO_ROOT)
         proc.setProcessEnvironment(
-            self._build_env(hf_token, watchdog_safe, sparse_conv_none))
+            self._build_env(hf_token, watchdog_safe, sparse_conv_none, fast_mode))
         proc.setProcessChannelMode(QProcess.SeparateChannels)
 
         proc.readyReadStandardOutput.connect(self._on_stdout)
@@ -135,7 +136,8 @@ class GenerationWorker(QObject):
     # ------------------------------------------------------------- env / read
 
     def _build_env(self, hf_token: Optional[str], watchdog_safe: bool = False,
-                   sparse_conv_none: bool = False) -> QProcessEnvironment:
+                   sparse_conv_none: bool = False,
+                   fast_mode: bool = False) -> QProcessEnvironment:
         """Mirror DaemonRuntimeEnvironment.make() from the Swift app."""
         env = QProcessEnvironment.systemEnvironment()
         env.insert("PYTHONUNBUFFERED", "1")
@@ -144,6 +146,17 @@ class GenerationWorker(QObject):
         env.insert("MTL_DEBUG_LAYER", "0")
         env.insert("MTL_SHADER_VALIDATION", "0")
         env.insert("METAL_DEVICE_WRAPPER_TYPE", "0")
+        # Cap CPU thread pools for the parallel CPU phases (xatlas UV unwrap,
+        # fast_simplification, numpy/scipy in the texture bake). Left uncapped,
+        # these libraries each spawn one thread per core and oversubscribe while
+        # the GPU work and main thread also need cycles. We respect any value the
+        # user already exported. Default = physical cores - 2 (min 4), which
+        # keeps headroom without starving the parallel work.
+        thread_cap = str(max(4, (os.cpu_count() or 8) - 2))
+        for var in ("OMP_NUM_THREADS", "VECLIB_MAXIMUM_THREADS",
+                    "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+            if var not in os.environ:
+                env.insert(var, thread_cap)
         if hf_token:
             env.insert("HF_TOKEN", hf_token)
         if watchdog_safe:
@@ -153,6 +166,9 @@ class GenerationWorker(QObject):
             # Slow fallback path — explicit opt-in only. Otherwise generate.py
             # auto-detects (flex_gemm when available).
             env.insert("SPARSE_CONV_BACKEND", "none")
+        if fast_mode:
+            # Experimental fp16 fast mode (changes GPU numerics; opt-in).
+            env.insert("TRELLIS_FAST", "1")
         return env
 
     def _on_stdout(self) -> None:

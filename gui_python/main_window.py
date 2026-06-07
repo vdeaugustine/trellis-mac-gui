@@ -4,6 +4,7 @@ signals into UI state for the core image-to-3D generation flow."""
 from __future__ import annotations
 
 import os
+import threading
 
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
@@ -48,6 +49,10 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._build_menu()
         self._update_generate_enabled()
+
+        # Warm the display-count cache off the UI thread so the first Generate
+        # click (auto watchdog mode) doesn't stall ~1s on `system_profiler`.
+        threading.Thread(target=system_info.display_count, daemon=True).start()
 
     # ------------------------------------------------------------------- UI
 
@@ -173,6 +178,7 @@ class MainWindow(QMainWindow):
             hf_token=self._settings.effective_hf_token(),
             watchdog_safe=watchdog_safe,
             sparse_conv_none=self._settings.sparse_conv_none,
+            fast_mode=self._settings.fast_mode,
         )
 
     def _effective_watchdog_safe(self, params: dict) -> bool:
@@ -351,6 +357,7 @@ class MainWindow(QMainWindow):
 
     def _exit_running_state(self) -> None:
         self._running = False
+        self.progress.flush_log()   # ensure the tail of the log is shown
         self.params.set_enabled(True)
         self.image_area.setEnabled(True)
         self.generate_btn.setText("Generate")
@@ -359,4 +366,5 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:  # noqa: N802
         if self._worker.is_running():
             self._worker.cancel()
+        self.storage.shutdown()
         super().closeEvent(event)
