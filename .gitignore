@@ -11,3 +11,14 @@ stubs/
 progress-assets/
 PROGRESS.md
 deps/
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+**/xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
