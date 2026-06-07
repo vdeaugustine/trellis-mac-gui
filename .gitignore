@@ -2,7 +2,6 @@
 __pycache__/
 *.pyc
 *.egg-info/
-TRELLIS.2/
 stubs/
 *.obj
 *.glb
