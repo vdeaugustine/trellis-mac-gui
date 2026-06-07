@@ -1,12 +1,27 @@
 import Foundation
 import SwiftData
 
+/// Live progress details for the active daemon stage.
+struct GenerationStageProgress {
+    let stage: GenerationStatus
+    let current: Int
+    let total: Int
+    let message: String
+
+    var fraction: Double {
+        guard total > 0 else { return 0 }
+        return min(1, max(0, Double(current) / Double(total)))
+    }
+}
+
 @MainActor
 final class GenerationService: ObservableObject {
     static let shared = GenerationService()
 
     @Published var activeRecord: GenerationRecord?
+    @Published var lastCompletedRecord: GenerationRecord?
     @Published var queue: [GenerationRecord] = []
+    @Published var stageProgress: GenerationStageProgress?
 
     private var isProcessing = false
     private let log = AppLogger.shared
@@ -39,6 +54,7 @@ final class GenerationService: ObservableObject {
 
         let nextRecord = queue.removeFirst()
         activeRecord = nextRecord
+        stageProgress = nil
         log.info("Processing: \(nextRecord.id)", context: "Generation")
 
         Task {
@@ -135,6 +151,7 @@ final class GenerationService: ObservableObject {
         }
 
         record.status = stage
+        updateStageProgress(response, stage: stage)
         log.info("Stage update: \(stage.displayName)", context: "Generation")
 
         if stage == .complete {
@@ -173,6 +190,19 @@ final class GenerationService: ObservableObject {
         }
     }
 
+    private func updateStageProgress(_ response: [String: Any], stage: GenerationStatus) {
+        guard let current = response["current"] as? Int,
+              let total = response["total"] as? Int else {
+            if response["status"] as? String == "started" {
+                let message = response["message"] as? String ?? stage.displayName
+                stageProgress = GenerationStageProgress(stage: stage, current: 0, total: 0, message: message)
+            }
+            return
+        }
+        let message = response["message"] as? String ?? stage.displayName
+        stageProgress = GenerationStageProgress(stage: stage, current: current, total: total, message: message)
+    }
+
     private func handleDaemonCrash(_ message: String, for record: GenerationRecord) {
         guard activeRecord?.id == record.id else { return }
         record.status = .failed
@@ -182,16 +212,23 @@ final class GenerationService: ObservableObject {
     }
 
     private func finishActive() {
-        if let modelContext = activeRecord?.modelContext {
-            do {
-                try modelContext.save()
-            } catch {
-                log.error("Failed to save final state: \(error.localizedDescription)", context: "Generation")
+        if let record = activeRecord {
+            if record.status == .complete {
+                lastCompletedRecord = record
+            }
+
+            if let modelContext = record.modelContext {
+                do {
+                    try modelContext.save()
+                } catch {
+                    log.error("Failed to save final state: \(error.localizedDescription)", context: "Generation")
+                }
             }
         }
 
         DaemonManager.shared.clearCallbacks()
         DaemonManager.shared.clearCrashCallbacks()
+        stageProgress = nil
         activeRecord = nil
         isProcessing = false
 

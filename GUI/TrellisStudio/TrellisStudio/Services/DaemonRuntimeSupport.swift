@@ -1,5 +1,21 @@
 import Foundation
 
+struct DaemonPipelineLoadProgress: Equatable {
+    let message: String
+    let current: Int
+    let total: Int
+
+    var statusText: String {
+        let cleanMessage = message.isEmpty ? "Preparing pipeline" : message
+        guard total > 0 else {
+            return "Loading Pipeline… \(cleanMessage)"
+        }
+        let clampedCurrent = min(max(current, 0), total)
+        let percent = Int((Double(clampedCurrent) / Double(total) * 100).rounded())
+        return "Loading Pipeline… \(percent)% — \(cleanMessage) (\(clampedCurrent)/\(total))"
+    }
+}
+
 struct DaemonRuntimeEnvironment {
     static func make(settings: SettingsService = .shared, logger: AppLogger = .shared) -> [String: String] {
         var env = ProcessInfo.processInfo.environment

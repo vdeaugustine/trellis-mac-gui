@@ -146,7 +146,63 @@ struct SettingsView: View {
                         .foregroundColor(Theme.errorRed)
                 }
             }
+
+            Divider()
+
+            backendManagementSection
         }
+    }
+
+    @ObservedObject private var daemon = DaemonManager.shared
+
+    private var backendManagementSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Backend Process")
+                .font(.headline)
+
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(backendStatusColor)
+                    .frame(width: 10, height: 10)
+                Text(backendStatusText)
+                    .font(.subheadline)
+                    .foregroundColor(Theme.slateGray)
+                Spacer()
+            }
+
+            HStack(spacing: 12) {
+                Button("Stop Backend") {
+                    daemon.stopDaemon()
+                }
+                .disabled(daemon.isOffline)
+
+                Button("Restart Backend") {
+                    daemon.stopDaemon()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        let path = onboarding.backendDirectoryURL.path
+                        daemon.startDaemon(trellisPath: path)
+                    }
+                }
+            }
+
+            Text("The backend daemon persists between app sessions to avoid reloading the pipeline (~14GB). Stop it to free GPU memory.")
+                .font(.caption)
+                .foregroundColor(Theme.slateGray)
+        }
+    }
+
+    private var backendStatusColor: Color {
+        if daemon.isPipelineLoaded { return Theme.successGreen }
+        if daemon.isReady { return Theme.warningAmber }
+        if daemon.isWarmingUp { return Theme.warningAmber }
+        return Theme.errorRed
+    }
+
+    private var backendStatusText: String {
+        if daemon.isPipelineLoaded { return "Running — Pipeline loaded" }
+        if daemon.isReady { return "Running — Pipeline not yet loaded" }
+        if daemon.isWarmingUp { return "Loading pipeline…" }
+        return "Offline"
     }
     
     private var accountTab: some View {

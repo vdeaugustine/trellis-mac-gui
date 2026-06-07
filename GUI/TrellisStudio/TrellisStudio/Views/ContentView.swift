@@ -54,7 +54,7 @@ struct MainWorkspaceView: View {
                     .padding(.top, 12)
             }
 
-            ModelViewerPanel()
+            ModelViewerPanel(record: generation.lastCompletedRecord)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Theme.background)
@@ -118,6 +118,13 @@ struct MainWorkspaceView: View {
                     .fill(daemonStatusColor)
                     .frame(width: 8, height: 8)
                     .accessibilityIdentifier(AccessibilityID.daemonStatusDot)
+
+                if daemon.isWarmingUp || daemon.connectionStatus != nil {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.7)
+                }
+
                 Text(daemonStatusText)
                     .font(.caption)
                     .foregroundColor(Theme.slateGray)
@@ -237,6 +244,7 @@ struct MainWorkspaceView: View {
     private var daemonStatusColor: Color {
         if daemon.isReady { return Theme.successGreen }
         if daemon.isWarmingUp { return Theme.warningAmber }
+        if daemon.connectionStatus != nil { return Theme.warningAmber }
         if daemon.lastDaemonError != nil { return Theme.errorRed }
         if !daemon.isOffline { return Theme.warningAmber }
         return Theme.errorRed
@@ -248,7 +256,14 @@ struct MainWorkspaceView: View {
                 ? "Backend Ready"
                 : "Backend Ready — pipeline loads on first generation"
         }
-        if daemon.isWarmingUp { return "Loading Pipeline… (this takes ~2 min on first launch)" }
+        if daemon.isWarmingUp {
+            return daemon.pipelineLoadProgress?.statusText
+                ?? "Loading Pipeline… preparing progress"
+        }
+        // Show connection progress during startup
+        if let status = daemon.connectionStatus {
+            return status
+        }
         if case .gatedAccess = daemon.errorKind {
             return "Model access required — see below"
         }

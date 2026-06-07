@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Shows live generation progress during an active generation.
 struct GenerationProgressView: View {
+    @EnvironmentObject private var generation: GenerationService
     var record: GenerationRecord
 
     private let orderedStages: [GenerationStatus] = [
@@ -31,6 +32,13 @@ struct GenerationProgressView: View {
                 ForEach(orderedStages, id: \.self) { stage in
                     stageIndicator(stage)
                 }
+            }
+
+            if let progress = generation.stageProgress,
+               progress.stage == record.status,
+               record.status != .failed,
+               record.status != .failedWatchdog {
+                stageProgressDetails(progress)
             }
 
             // Error message
@@ -88,6 +96,34 @@ struct GenerationProgressView: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func stageProgressDetails(_ progress: GenerationStageProgress) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(progress.message)
+                    .font(.caption)
+                    .foregroundColor(Theme.slateGray)
+                    .lineLimit(1)
+                Spacer()
+                if progress.total > 0 {
+                    Text("\(progress.current)/\(progress.total)")
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundColor(Theme.slateGray)
+                }
+            }
+
+            if progress.total > 0 {
+                ProgressView(value: progress.fraction, total: 1)
+                    .progressViewStyle(.linear)
+                    .tint(Theme.accentIndigo)
+            } else {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .tint(Theme.accentIndigo)
+            }
+        }
+        .padding(.top, 2)
     }
 
     private func barColor(isComplete: Bool, isCurrent: Bool, isFailed: Bool) -> Color {

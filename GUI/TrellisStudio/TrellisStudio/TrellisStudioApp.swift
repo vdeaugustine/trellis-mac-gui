@@ -63,7 +63,50 @@ struct TrellisStudioApp: App {
             return
         }
 
+        // Auto-sync daemon script from BackendBundle to deployed backend
+        syncDaemonScript()
+
         log.info("Starting daemon from: \(backendPath)", context: "Daemon")
         daemonManager.startDaemon(trellisPath: backendPath)
+    }
+
+    /// Copies the latest trellis_daemon.py from BackendBundle to the deployed backend.
+    private func syncDaemonScript() {
+        let log = AppLogger.shared
+        let destURL = onboardingService.backendDirectoryURL
+            .appendingPathComponent("trellis_daemon.py")
+        let fm = FileManager.default
+
+        // Try multiple source locations
+        let candidates: [URL] = [
+            // 1. App bundle (production builds)
+            Bundle.main
+                .url(forResource: "BackendBundle", withExtension: nil)?
+                .appendingPathComponent("trellis_daemon.py"),
+            // 2. Source tree: #filePath is TrellisStudioApp.swift in TrellisStudio/
+            URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent() // TrellisStudio/
+                .appendingPathComponent("BackendBundle/trellis_daemon.py"),
+            // 3. Source tree: from Services/ subdirectory
+            URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appendingPathComponent("BackendBundle/trellis_daemon.py"),
+        ].compactMap { $0 }
+
+        guard let source = candidates.first(where: { fm.fileExists(atPath: $0.path) }) else {
+            log.warning("Could not find BackendBundle daemon to sync. Tried: \(candidates.map(\.path))", context: "Daemon")
+            return
+        }
+
+        do {
+            if fm.fileExists(atPath: destURL.path) {
+                try fm.removeItem(at: destURL)
+            }
+            try fm.copyItem(at: source, to: destURL)
+            log.info("Synced daemon script from: \(source.lastPathComponent)", context: "Daemon")
+        } catch {
+            log.warning("Failed to sync daemon script: \(error.localizedDescription)", context: "Daemon")
+        }
     }
 }
