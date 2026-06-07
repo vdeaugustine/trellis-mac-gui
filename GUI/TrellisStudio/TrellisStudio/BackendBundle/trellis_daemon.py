@@ -19,7 +19,11 @@ os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 os.environ.setdefault("ATTN_BACKEND", "sdpa")
 os.environ.setdefault("SPARSE_ATTN_BACKEND", "sdpa")
 if "SPARSE_CONV_BACKEND" not in os.environ:
-    os.environ["SPARSE_CONV_BACKEND"] = "none"
+    try:
+        import flex_gemm  # noqa: F401
+        os.environ["SPARSE_CONV_BACKEND"] = "flex_gemm"
+    except (ImportError, RuntimeError):
+        os.environ["SPARSE_CONV_BACKEND"] = "none"
 
 # Suppress expected MPS fallback warnings — we explicitly enabled fallback
 import warnings
@@ -220,6 +224,105 @@ PORT_FILE = os.path.join(APP_SUPPORT_DIR, "daemon.port")
 PID_FILE = os.path.join(APP_SUPPORT_DIR, "daemon.pid")
 
 
+# ── Pipeline warmup & audit ───────────────────────────────────────────
+
+def _warmup_pipeline(pipeline):
+    """Run a dummy forward pass to trigger MPS kernel JIT compilation.
+
+    The first generation otherwise pays ~55s of compilation overhead
+    because MPS compiles Metal kernels on first use per op+shape.
+    """
+    torch = get_torch()
+    device = torch.device("mps")
+    send_response({
+        "stage": "loadingPipeline",
+        "status": "step",
+        "current": 4, "total": 5,
+        "message": "Warming up MPS kernels",
+    })
+    sys.stderr.write("[daemon] Warming up MPS kernels...\n")
+    sys.stderr.flush()
+
+    try:
+        with torch.no_grad():
+            # Warm the sparse structure flow model (dense 16^3 grid)
+            ss_name = "sparse_structure_flow_model"
+            if ss_name in pipeline.models:
+                ss = pipeline.models[ss_name]
+                ss_device = next(ss.parameters()).device
+                ss_dtype = next(ss.parameters()).dtype
+                x = torch.randn(1, ss.in_channels, 16, 16, 16,
+                                device=ss_device, dtype=ss_dtype)
+                t = torch.tensor([500.0], device=ss_device)
+                cond_ch = getattr(ss, 'cond_channels', 1024)
+                cond = torch.zeros(1, 1, cond_ch, device=ss_device, dtype=ss_dtype)
+                try:
+                    _ = ss(x, t, cond)
+                except Exception as e:
+                    sys.stderr.write(f"[daemon] Warmup SS model skipped: {e}\n")
+                    sys.stderr.flush()
+                if hasattr(torch, 'mps'):
+                    torch.mps.synchronize()
+
+        sys.stderr.write("[daemon] MPS kernel warmup done\n")
+        sys.stderr.flush()
+    except Exception as e:
+        sys.stderr.write(f"[daemon] Warmup failed (non-fatal): {e}\n")
+        sys.stderr.flush()
+
+
+def _audit_pipeline(pipeline):
+    """Log backend selection and model dtypes for debugging."""
+    torch = get_torch()
+    import os as _os
+
+    audit = {
+        "sparse_conv_backend": _os.environ.get("SPARSE_CONV_BACKEND", "unknown"),
+        "attn_backend": _os.environ.get("ATTN_BACKEND", "unknown"),
+        "sparse_attn_backend": _os.environ.get("SPARSE_ATTN_BACKEND", "unknown"),
+        "models": {},
+    }
+    for name, model in pipeline.models.items():
+        try:
+            p = next(model.parameters())
+            audit["models"][name] = {
+                "device": str(p.device),
+                "dtype": str(p.dtype),
+            }
+        except StopIteration:
+            audit["models"][name] = {"device": "no_params", "dtype": "no_params"}
+
+    send_response({"stage": "backendAudit", "status": "info", **audit})
+    sys.stderr.write(f"[daemon] Backend audit: conv={audit['sparse_conv_backend']}, "
+                     f"attn={audit['attn_backend']}\n")
+    sys.stderr.flush()
+
+
+class _TimedStage:
+    """Context manager for MPS-synchronized stage timing."""
+
+    def __init__(self, name):
+        self.name = name
+
+    def __enter__(self):
+        torch = get_torch()
+        if hasattr(torch, 'mps') and hasattr(torch.mps, 'synchronize'):
+            torch.mps.synchronize()
+        self._t0 = time.perf_counter()
+        return self
+
+    def __exit__(self, *exc):
+        torch = get_torch()
+        if hasattr(torch, 'mps') and hasattr(torch.mps, 'synchronize'):
+            torch.mps.synchronize()
+        elapsed = time.perf_counter() - self._t0
+        send_response({
+            "stage": "perf",
+            "name": self.name,
+            "elapsed_s": round(elapsed, 3),
+        })
+
+
 # ── Pipeline loading ──────────────────────────────────────────────────
 
 def load_pipeline(args, pipeline_type="512"):
@@ -299,6 +402,13 @@ def load_pipeline(args, pipeline_type="512"):
         sys.stderr.write("[daemon] Step 4: Moving to MPS...\n")
         sys.stderr.flush()
         pipeline.to(get_torch().device("mps"))
+
+        # Warmup: trigger MPS kernel JIT compilation before first real generation.
+        # The first generation otherwise pays ~55s of compilation overhead.
+        _warmup_pipeline(pipeline)
+
+        # Audit: log backends, device, and dtype for each model
+        _audit_pipeline(pipeline)
 
         elapsed = round(time.time() - t0, 2)
         send_response({
@@ -433,12 +543,18 @@ def handle_generate(cmd_payload, pipeline, args):
 
     def hooked_decode_shape(*a, **kw):
         send_response({"stage": "decodingShape", "status": "started"})
+        torch = get_torch()
+        if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            torch.mps.synchronize()  # Reset GPU watchdog timer
         res = orig_decode_shape(*a, **kw)
         send_response({"stage": "decodingShape", "status": "done"})
         return res
 
     def hooked_decode_tex(*a, **kw):
         send_response({"stage": "decodingTexture", "status": "started"})
+        torch = get_torch()
+        if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            torch.mps.synchronize()  # Reset GPU watchdog timer
         res = orig_decode_tex(*a, **kw)
         send_response({"stage": "decodingTexture", "status": "done"})
         return res
@@ -483,12 +599,25 @@ def handle_generate(cmd_payload, pipeline, args):
             tm = trimesh.Trimesh(vertices=verts, faces=faces)
             tm.export(glb_path)
 
-        # Save OBJ
+        # Save OBJ (vectorized — avoids millions of Python f-string calls)
+        import numpy as np
         with open(obj_path, "w") as f:
-            for v in verts:
-                f.write(f"v {v[0]:.6f} {v[1]:.6f} {v[2]:.6f}\n")
-            for face in faces:
-                f.write(f"f {face[0]+1} {face[1]+1} {face[2]+1}\n")
+            v_lines = np.column_stack([
+                np.full(len(verts), 'v'),
+                verts[:, 0].astype(str),
+                verts[:, 1].astype(str),
+                verts[:, 2].astype(str),
+            ])
+            f.write('\n'.join(' '.join(row) for row in v_lines))
+            f.write('\n')
+            f_lines = np.column_stack([
+                np.full(len(faces), 'f'),
+                (faces[:, 0] + 1).astype(str),
+                (faces[:, 1] + 1).astype(str),
+                (faces[:, 2] + 1).astype(str),
+            ])
+            f.write('\n'.join(' '.join(row) for row in f_lines))
+            f.write('\n')
 
         send_response({
             "stage": "complete",

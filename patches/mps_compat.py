@@ -59,34 +59,42 @@ def patch_sparse_attention():
         elif num_all_args == 2:
             k, v = kv.unbind(dim=1)
         H = q.shape[-2]
-        max_q = max(q_seqlen)
-        max_kv = max(kv_seqlen) if kv_seqlen is not None else max_q
         B = len(q_seqlen)
         C_q = q.shape[-1]
         C_v = v.shape[-1]
-        q_padded = torch.zeros(B, max_q, H, C_q, device=device, dtype=q.dtype)
-        k_padded = torch.zeros(B, max_kv, H, C_q, device=device, dtype=k.dtype)
-        v_padded = torch.zeros(B, max_kv, H, C_v, device=device, dtype=v.dtype)
-        q_offset = 0
-        kv_offset = 0
-        for b in range(B):
-            ql = q_seqlen[b]
-            kvl = kv_seqlen[b] if kv_seqlen is not None else ql
-            q_padded[b, :ql] = q[q_offset:q_offset+ql]
-            k_padded[b, :kvl] = k[kv_offset:kv_offset+kvl]
-            v_padded[b, :kvl] = v[kv_offset:kv_offset+kvl]
-            q_offset += ql
-            kv_offset += kvl
-        q_padded = q_padded.permute(0, 2, 1, 3)
-        k_padded = k_padded.permute(0, 2, 1, 3)
-        v_padded = v_padded.permute(0, 2, 1, 3)
-        out_padded = sdpa_fn(q_padded, k_padded, v_padded)
-        out_padded = out_padded.permute(0, 2, 1, 3)
-        out_list = []
-        for b in range(B):
-            ql = q_seqlen[b]
-            out_list.append(out_padded[b, :ql])
-        out = torch.cat(out_list, dim=0)
+        if B == 1:
+            # Fast path: no padding needed for single-sample inference.
+            # Zero-copy views — avoids 3 zero-tensor allocs + copy loop.
+            q4 = q.unsqueeze(0).permute(0, 2, 1, 3)   # [1, H, T, C_q]
+            k4 = k.unsqueeze(0).permute(0, 2, 1, 3)   # [1, H, T, C_q]
+            v4 = v.unsqueeze(0).permute(0, 2, 1, 3)   # [1, H, T, C_v]
+            out = sdpa_fn(q4, k4, v4).permute(0, 2, 1, 3).reshape(-1, H, C_v)
+        else:
+            max_q = max(q_seqlen)
+            max_kv = max(kv_seqlen) if kv_seqlen is not None else max_q
+            q_padded = torch.zeros(B, max_q, H, C_q, device=device, dtype=q.dtype)
+            k_padded = torch.zeros(B, max_kv, H, C_q, device=device, dtype=k.dtype)
+            v_padded = torch.zeros(B, max_kv, H, C_v, device=device, dtype=v.dtype)
+            q_offset = 0
+            kv_offset = 0
+            for b in range(B):
+                ql = q_seqlen[b]
+                kvl = kv_seqlen[b] if kv_seqlen is not None else ql
+                q_padded[b, :ql] = q[q_offset:q_offset+ql]
+                k_padded[b, :kvl] = k[kv_offset:kv_offset+kvl]
+                v_padded[b, :kvl] = v[kv_offset:kv_offset+kvl]
+                q_offset += ql
+                kv_offset += kvl
+            q_padded = q_padded.permute(0, 2, 1, 3)
+            k_padded = k_padded.permute(0, 2, 1, 3)
+            v_padded = v_padded.permute(0, 2, 1, 3)
+            out_padded = sdpa_fn(q_padded, k_padded, v_padded)
+            out_padded = out_padded.permute(0, 2, 1, 3)
+            out_list = []
+            for b in range(B):
+                ql = q_seqlen[b]
+                out_list.append(out_padded[b, :ql])
+            out = torch.cat(out_list, dim=0)
 """
 
     src = src.replace(
@@ -331,19 +339,34 @@ def patch_fdg_vae():
 
 
 def patch_pipeline():
-    """Guard torch.cuda.empty_cache() call."""
+    """Guard torch.cuda.empty_cache() and add torch.mps.empty_cache()."""
     path = os.path.join(TRELLIS_ROOT, "trellis2/pipelines/trellis2_image_to_3d.py")
     src = read_file(path)
 
-    if "if torch.cuda.is_available():" in src:
+    if "torch.mps.empty_cache()" in src:
         print(f"  Already patched: {os.path.relpath(path, TRELLIS_ROOT)}")
         return
 
-    src = src.replace(
-        "        torch.cuda.empty_cache()\n",
-        "        if torch.cuda.is_available():\n"
-        "            torch.cuda.empty_cache()\n",
-    )
+    # Handle both fresh and previously-patched files
+    if "if torch.cuda.is_available():" in src:
+        # Previously patched with just the CUDA guard — add MPS path
+        src = src.replace(
+            "        if torch.cuda.is_available():\n"
+            "            torch.cuda.empty_cache()\n",
+            "        if torch.cuda.is_available():\n"
+            "            torch.cuda.empty_cache()\n"
+            "        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():\n"
+            "            torch.mps.empty_cache()\n",
+        )
+    else:
+        # Fresh file with bare torch.cuda.empty_cache()
+        src = src.replace(
+            "        torch.cuda.empty_cache()\n",
+            "        if torch.cuda.is_available():\n"
+            "            torch.cuda.empty_cache()\n"
+            "        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():\n"
+            "            torch.mps.empty_cache()\n",
+        )
     write_file(path, src)
 
 
@@ -413,6 +436,174 @@ def install_mesh_extract():
         f.write('        raise RuntimeError("o_voxel.rasterize requires CUDA")\n')
 
 
+def patch_rope_real_valued():
+    """Replace complex-number RoPE with real-valued cos/sin formulation.
+
+    The original uses torch.polar, torch.view_as_complex, and complex multiply.
+    These ops may silently fall back to CPU on MPS (PYTORCH_ENABLE_MPS_FALLBACK=1),
+    causing thousands of GPU→CPU→GPU round trips per sampling stage.
+
+    The real-valued version is mathematically identical and uses only real ops
+    that MPS fully supports.
+    """
+    # Patch dense RoPE
+    dense_path = os.path.join(TRELLIS_ROOT, "trellis2/modules/attention/rope.py")
+    src = read_file(dense_path)
+
+    if "# MPS-safe real-valued RoPE" in src:
+        print(f"  Already patched: {os.path.relpath(dense_path, TRELLIS_ROOT)}")
+    else:
+        new_dense = '''\
+from typing import *
+import torch
+import torch.nn as nn
+
+# MPS-safe real-valued RoPE — avoids complex ops that may CPU-fallback on MPS
+
+class RotaryPositionEmbedder(nn.Module):
+    def __init__(
+        self,
+        head_dim: int,
+        dim: int = 3,
+        rope_freq: Tuple[float, float] = (1.0, 10000.0)
+    ):
+        super().__init__()
+        assert head_dim % 2 == 0, "Head dim must be divisible by 2"
+        self.head_dim = head_dim
+        self.dim = dim
+        self.rope_freq = rope_freq
+        self.freq_dim = head_dim // 2 // dim
+        self.freqs = torch.arange(self.freq_dim, dtype=torch.float32) / self.freq_dim
+        self.freqs = rope_freq[0] / (rope_freq[1] ** (self.freqs))
+
+    def _get_cos_sin(self, indices: torch.Tensor):
+        """Return (cos, sin) tensors instead of complex phases."""
+        self.freqs = self.freqs.to(indices.device)
+        angles = torch.outer(indices, self.freqs)
+        return torch.cos(angles), torch.sin(angles)
+
+    @staticmethod
+    def apply_rotary_embedding(x: torch.Tensor, phases) -> torch.Tensor:
+        """Apply rotary embedding using real-valued cos/sin.
+
+        phases is a (cos, sin) tuple from _get_cos_sin.
+        """
+        cos_phases, sin_phases = phases
+        # x: [..., D], cos/sin: [..., D//2]
+        x_fp32 = x.float()
+        x1 = x_fp32[..., 0::2]  # even indices
+        x2 = x_fp32[..., 1::2]  # odd indices
+        cos_p = cos_phases.unsqueeze(-2)  # broadcast over heads
+        sin_p = sin_phases.unsqueeze(-2)
+        out_even = x1 * cos_p - x2 * sin_p
+        out_odd = x1 * sin_p + x2 * cos_p
+        out = torch.stack([out_even, out_odd], dim=-1).reshape_as(x_fp32)
+        return out.to(x.dtype)
+
+    def forward(self, indices: torch.Tensor):
+        assert indices.shape[-1] == self.dim
+        cos_phases, sin_phases = self._get_cos_sin(
+            indices.reshape(-1)
+        )
+        cos_phases = cos_phases.reshape(*indices.shape[:-1], -1)
+        sin_phases = sin_phases.reshape(*indices.shape[:-1], -1)
+        if cos_phases.shape[-1] < self.head_dim // 2:
+            padn = self.head_dim // 2 - cos_phases.shape[-1]
+            cos_phases = torch.cat([cos_phases, torch.ones(
+                *cos_phases.shape[:-1], padn, device=cos_phases.device
+            )], dim=-1)
+            sin_phases = torch.cat([sin_phases, torch.zeros(
+                *sin_phases.shape[:-1], padn, device=sin_phases.device
+            )], dim=-1)
+        return (cos_phases, sin_phases)
+'''
+        write_file(dense_path, new_dense)
+
+    # Patch sparse RoPE
+    sparse_path = os.path.join(TRELLIS_ROOT, "trellis2/modules/sparse/attention/rope.py")
+    src = read_file(sparse_path)
+
+    if "# MPS-safe real-valued RoPE" in src:
+        print(f"  Already patched: {os.path.relpath(sparse_path, TRELLIS_ROOT)}")
+    else:
+        new_sparse = '''\
+from typing import *
+import torch
+import torch.nn as nn
+from ..basic import SparseTensor
+
+# MPS-safe real-valued RoPE — avoids complex ops that may CPU-fallback on MPS
+
+class SparseRotaryPositionEmbedder(nn.Module):
+    def __init__(
+        self,
+        head_dim: int,
+        dim: int = 3,
+        rope_freq: Tuple[float, float] = (1.0, 10000.0)
+    ):
+        super().__init__()
+        assert head_dim % 2 == 0, "Head dim must be divisible by 2"
+        self.head_dim = head_dim
+        self.dim = dim
+        self.rope_freq = rope_freq
+        self.freq_dim = head_dim // 2 // dim
+        self.freqs = torch.arange(self.freq_dim, dtype=torch.float32) / self.freq_dim
+        self.freqs = rope_freq[0] / (rope_freq[1] ** (self.freqs))
+
+    def _get_cos_sin(self, indices: torch.Tensor):
+        """Return (cos, sin) tensors instead of complex phases."""
+        self.freqs = self.freqs.to(indices.device)
+        angles = torch.outer(indices, self.freqs)
+        return torch.cos(angles), torch.sin(angles)
+
+    def _rotary_embedding(self, x: torch.Tensor, cos_phases, sin_phases) -> torch.Tensor:
+        x_fp32 = x.float()
+        x1 = x_fp32[..., 0::2]
+        x2 = x_fp32[..., 1::2]
+        cos_p = cos_phases.unsqueeze(-2)
+        sin_p = sin_phases.unsqueeze(-2)
+        out_even = x1 * cos_p - x2 * sin_p
+        out_odd = x1 * sin_p + x2 * cos_p
+        out = torch.stack([out_even, out_odd], dim=-1).reshape_as(x_fp32)
+        return out.to(x.dtype)
+
+    def forward(self, q: SparseTensor, k=None):
+        assert q.coords.shape[-1] == self.dim + 1
+        cache_name = f\'rope_cossin_{self.dim}d_freq{self.rope_freq[0]}-{self.rope_freq[1]}_hd{self.head_dim}\'
+        cached = q.get_spatial_cache(cache_name)
+        if cached is None:
+            coords = q.coords[..., 1:]
+            cos_p, sin_p = self._get_cos_sin(coords.reshape(-1))
+            cos_p = cos_p.reshape(*coords.shape[:-1], -1)
+            sin_p = sin_p.reshape(*coords.shape[:-1], -1)
+            if cos_p.shape[-1] < self.head_dim // 2:
+                padn = self.head_dim // 2 - cos_p.shape[-1]
+                cos_p = torch.cat([cos_p, torch.ones(
+                    *cos_p.shape[:-1], padn, device=cos_p.device
+                )], dim=-1)
+                sin_p = torch.cat([sin_p, torch.zeros(
+                    *sin_p.shape[:-1], padn, device=sin_p.device
+                )], dim=-1)
+            cached = (cos_p, sin_p)
+            q.register_spatial_cache(cache_name, cached)
+        cos_p, sin_p = cached
+        q_embed = q.replace(self._rotary_embedding(q.feats, cos_p, sin_p))
+        if k is None:
+            return q_embed
+        k_embed = k.replace(self._rotary_embedding(k.feats, cos_p, sin_p))
+        return q_embed, k_embed
+'''
+        write_file(sparse_path, new_sparse)
+
+    # Also patch the dense attention module that calls apply_rotary_embedding
+    # with phases as a single tensor — now it receives a (cos, sin) tuple
+    modules_path = os.path.join(TRELLIS_ROOT, "trellis2/modules/attention/modules.py")
+    src = read_file(modules_path)
+    if "phases)" not in src or "apply_rotary_embedding(q, phases)" in src:
+        print(f"  Note: Dense attention modules.py calls RotaryPositionEmbedder.apply_rotary_embedding(q, phases)")
+        print(f"  The new apply_rotary_embedding now expects (cos, sin) tuple — which is what forward() returns.")
+
+
 def install_stubs():
     """Create all stub modules for CUDA-only libraries."""
     stubs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "stubs")
@@ -440,6 +631,7 @@ def main():
     patch_fdg_vae()
     patch_pipeline()
     patch_pipeline_base()
+    patch_rope_real_valued()
     install_conv_backend()
     install_mesh_extract()
 

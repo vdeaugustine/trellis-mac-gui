@@ -40,7 +40,9 @@ struct DaemonRuntimeEnvironment {
         let token = settings.hfToken
         if !token.isEmpty { env["HF_TOKEN"] = token }
         applyAdvancedEnvVars(settings.advancedEnvVars, to: &env, logger: logger)
-        env["SPARSE_CONV_BACKEND"] = env["SPARSE_CONV_BACKEND"] ?? "none"
+        // Do NOT force SPARSE_CONV_BACKEND here.
+        // The Python daemon auto-detects flex_gemm at import time and falls
+        // back to conv_none only when the Metal backend is unavailable.
 
         // Xcode Metal validation can abort PyTorch/MPS kernels with exit code 6.
         env["MTL_DEBUG_LAYER"] = "0"
@@ -65,14 +67,6 @@ struct DaemonRuntimeEnvironment {
             let key = String(parts[0]).trimmingCharacters(in: .whitespacesAndNewlines)
             let value = String(parts[1]).trimmingCharacters(in: .whitespacesAndNewlines)
             guard !key.isEmpty else { continue }
-            if key == "SPARSE_CONV_BACKEND", value == "flex_gemm" {
-                logger.warning(
-                    "SPARSE_CONV_BACKEND=flex_gemm is unstable during pipeline load; using none",
-                    context: "Daemon"
-                )
-                env[key] = "none"
-                continue
-            }
             env[key] = value
         }
     }

@@ -37,12 +37,8 @@ final class SettingsService: ObservableObject {
         self.defaultPipelineType = UserDefaults.standard.string(forKey: "defaultPipelineType") ?? "512"
         self.defaultTextureSize = UserDefaults.standard.integer(forKey: "defaultTextureSize") == 0 ? 1024 : UserDefaults.standard.integer(forKey: "defaultTextureSize")
         self.defaultSeed = UserDefaults.standard.integer(forKey: "defaultSeed") == 0 ? 42 : UserDefaults.standard.integer(forKey: "defaultSeed")
-        let savedEnvVars = UserDefaults.standard.string(forKey: "advancedEnvVars")
-        self.advancedEnvVars = savedEnvVars == "SPARSE_CONV_BACKEND=flex_gemm"
-            ? "SPARSE_CONV_BACKEND=none"
-            : (savedEnvVars ?? "SPARSE_CONV_BACKEND=none")
-        if savedEnvVars == "SPARSE_CONV_BACKEND=flex_gemm" {
-            UserDefaults.standard.set(self.advancedEnvVars, forKey: "advancedEnvVars")
-        }
+        // Let Python auto-detect the best sparse conv backend (flex_gemm if available).
+        // Do NOT force SPARSE_CONV_BACKEND=none — that disables the fast Metal path.
+        self.advancedEnvVars = UserDefaults.standard.string(forKey: "advancedEnvVars") ?? ""
     }
 }

@@ -314,12 +314,25 @@ def main():
                         tm = trimesh.Trimesh(vertices=verts, faces=faces)
                         tm.export(glb_path)
                         
-                    # Save OBJ
+                    # Save OBJ (vectorized — avoids millions of Python f-string calls)
+                    import numpy as np
                     with open(obj_path, "w") as f:
-                        for v in verts:
-                            f.write(f"v {v[0]:.6f} {v[1]:.6f} {v[2]:.6f}\n")
-                        for face in faces:
-                            f.write(f"f {face[0]+1} {face[1]+1} {face[2]+1}\n")
+                        v_lines = np.column_stack([
+                            np.full(len(verts), 'v'),
+                            verts[:, 0].astype(str),
+                            verts[:, 1].astype(str),
+                            verts[:, 2].astype(str),
+                        ])
+                        f.write('\n'.join(' '.join(row) for row in v_lines))
+                        f.write('\n')
+                        f_lines = np.column_stack([
+                            np.full(len(faces), 'f'),
+                            (faces[:, 0] + 1).astype(str),
+                            (faces[:, 1] + 1).astype(str),
+                            (faces[:, 2] + 1).astype(str),
+                        ])
+                        f.write('\n'.join(' '.join(row) for row in f_lines))
+                        f.write('\n')
                             
                     t_total = time.time() - t0
                     send_response({
