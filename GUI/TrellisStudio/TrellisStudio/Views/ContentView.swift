@@ -111,29 +111,143 @@ struct MainWorkspaceView: View {
     // MARK: - Daemon Status
 
     private var daemonStatusBar: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(daemonStatusColor)
-                .frame(width: 8, height: 8)
-            Text(daemonStatusText)
+        VStack(spacing: 0) {
+            // Compact status row
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(daemonStatusColor)
+                    .frame(width: 8, height: 8)
+                Text(daemonStatusText)
+                    .font(.caption)
+                    .foregroundColor(Theme.slateGray)
+                    .lineLimit(1)
+                Spacer()
+
+                if daemon.isOffline && !daemon.isWarmingUp {
+                    Button(action: restartDaemon) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Restart")
+                        }
+                        .font(.caption)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Theme.accentIndigo.opacity(0.2))
+                        .cornerRadius(Theme.CornerRadius.button)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 6)
+
+            // Actionable recovery card for gated access errors
+            if case .gatedAccess(let repo) = daemon.errorKind {
+                gatedAccessRecoveryCard(repo: repo)
+            } else if daemon.errorKind == .authRequired {
+                authRequiredRecoveryCard
+            }
+        }
+        .background(Color.white.opacity(0.02))
+    }
+
+    private func gatedAccessRecoveryCard(repo: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "lock.shield.fill")
+                    .foregroundColor(Theme.warningAmber)
+                Text("Model Access Required")
+                    .font(.subheadline).bold()
+                    .foregroundColor(Theme.warningAmber)
+            }
+
+            Text("The pipeline needs access to gated HuggingFace models. Click each link below, then \"Agree and access repository\" on the HuggingFace page.")
                 .font(.caption)
                 .foregroundColor(Theme.slateGray)
-            Spacer()
+
+            ForEach(HFAuthService.shared.gatedModels) { model in
+                Button(action: {
+                    NSWorkspace.shared.open(model.requestURL)
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.up.right.square")
+                        Text(model.displayName)
+                            .bold()
+                        Text("— \(model.repoId)")
+                            .foregroundColor(Theme.slateGray)
+                    }
+                    .font(.caption)
+                    .foregroundColor(Theme.accentIndigo)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Text("After granting access, click Restart above.")
+                .font(.caption)
+                .foregroundColor(Theme.slateGray)
+                .italic()
         }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.warningAmber.opacity(0.06))
+        .cornerRadius(Theme.CornerRadius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                .stroke(Theme.warningAmber.opacity(0.2), lineWidth: 1)
+        )
         .padding(.horizontal, 24)
-        .padding(.vertical, 6)
-        .background(Color.white.opacity(0.02))
+        .padding(.bottom, 8)
+    }
+
+    private var authRequiredRecoveryCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "key.fill")
+                    .foregroundColor(Theme.warningAmber)
+                Text("HuggingFace Login Required")
+                    .font(.subheadline).bold()
+                    .foregroundColor(Theme.warningAmber)
+            }
+
+            Text("Your HuggingFace token is missing or expired. Re-enter it in Settings or run `huggingface-cli login` in Terminal.")
+                .font(.caption)
+                .foregroundColor(Theme.slateGray)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.warningAmber.opacity(0.06))
+        .cornerRadius(Theme.CornerRadius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.card)
+                .stroke(Theme.warningAmber.opacity(0.2), lineWidth: 1)
+        )
+        .padding(.horizontal, 24)
+        .padding(.bottom, 8)
+    }
+
+    private func restartDaemon() {
+        let backendPath = OnboardingService.shared.backendDirectoryURL.path
+        AppLogger.shared.info("Restarting daemon…", context: "Daemon")
+        daemon.startDaemon(trellisPath: backendPath)
     }
 
     private var daemonStatusColor: Color {
         if daemon.isReady { return Theme.successGreen }
         if daemon.isWarmingUp { return Theme.warningAmber }
+        if daemon.lastDaemonError != nil { return Theme.errorRed }
         return Theme.errorRed
     }
 
     private var daemonStatusText: String {
         if daemon.isReady { return "Backend Ready" }
-        if daemon.isWarmingUp { return "Loading Pipeline…" }
+        if daemon.isWarmingUp { return "Loading Pipeline… (this takes ~2 min on first launch)" }
+        if case .gatedAccess = daemon.errorKind {
+            return "Model access required — see below"
+        }
+        if daemon.errorKind == .authRequired {
+            return "HuggingFace login required — see below"
+        }
+        if let err = daemon.lastDaemonError { return "Backend Error: \(err)" }
         return "Backend Offline"
     }
 

@@ -11,13 +11,17 @@ struct OnboardingView: View {
     @State private var installLogs: [InstallLogEntry] = []
     @State private var installStatus: InstallStatus = .idle
     
+    @State private var downloadLogs: [InstallLogEntry] = []
+    @State private var downloadStatus: InstallStatus = .idle
+    @State private var downloadProgress = WeightDownloadProgress()
+    
     var body: some View {
         HStack(spacing: 0) {
             // Sidebar steps
             VStack(alignment: .leading, spacing: 20) {
                 Spacer().frame(height: 20)
                 
-                ForEach(1...5, id: \.self) { step in
+                ForEach(1...6, id: \.self) { step in
                     HStack(spacing: 12) {
                         Circle()
                             .fill(currentStep == step ? Theme.accentIndigo : (currentStep > step ? Theme.successGreen : Color.white.opacity(0.15)))
@@ -74,6 +78,8 @@ struct OnboardingView: View {
                         } else if currentStep == 4 {
                             huggingFaceStep
                         } else if currentStep == 5 {
+                            weightDownloadStep
+                        } else if currentStep == 6 {
                             readyStep
                         }
                     }
@@ -100,8 +106,8 @@ struct OnboardingView: View {
                     
                     Spacer()
                     
-                    Button(currentStep == 5 ? "Launch" : "Continue") {
-                        if currentStep == 5 {
+                    Button(currentStep == 6 ? "Launch" : "Continue") {
+                        if currentStep == 6 {
                             settings.hfToken = hfToken
                             onboarding.isCompleted = true
                         } else {
@@ -424,6 +430,14 @@ struct OnboardingView: View {
         )
     }
     
+    private var weightDownloadStep: some View {
+        WeightDownloadOnboardingStep(
+            downloadStatus: $downloadStatus,
+            downloadLogs: $downloadLogs,
+            downloadProgress: $downloadProgress
+        )
+    }
+    
     private var readyStep: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Ready to Generate")
@@ -463,8 +477,14 @@ struct OnboardingView: View {
     
     private var shouldDisableNextButton: Bool {
         if installStatus == .installing { return true }
+        if downloadStatus == .installing { return true }
         if currentStep == 3 { return installStatus != .succeeded }
-        if currentStep == 4 { return hfToken.isEmpty }
+        if currentStep == 4 {
+            return hfToken.isEmpty
+                || !HFAuthService.shared.isTokenValid
+                || !HFAuthService.shared.allGatedAccessGranted
+        }
+        if currentStep == 5 { return downloadStatus != .succeeded }
         return false
     }
     
@@ -472,9 +492,10 @@ struct OnboardingView: View {
         switch step {
         case 1: return "Welcome"
         case 2: return "Disk Space"
-        case 3: return "Environment Setup"
-        case 4: return "HuggingFace Token"
-        case 5: return "Ready"
+        case 3: return "Environment"
+        case 4: return "HuggingFace"
+        case 5: return "Model Weights"
+        case 6: return "Ready"
         default: return ""
         }
     }
@@ -483,9 +504,10 @@ struct OnboardingView: View {
         switch step {
         case 1: return "Meet Trellis Studio"
         case 2: return "Check requirements"
-        case 3: return "Install backend scripts"
+        case 3: return "Install backend"
         case 4: return "Connect to the hub"
-        case 5: return "All set to create"
+        case 5: return "Download ~15 GB"
+        case 6: return "All set to create"
         default: return ""
         }
     }

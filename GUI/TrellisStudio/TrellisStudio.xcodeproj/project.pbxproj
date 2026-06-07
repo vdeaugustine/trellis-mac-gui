@@ -29,6 +29,7 @@
 		A33583324D3E2466D56240C1 /* OnboardingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150C48CA32D45BF9034088F4 /* OnboardingService.swift */; };
 		A78F8068F8B51E4B826A6D6C /* WatchdogErrorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5F577A59CB928133035D3F /* WatchdogErrorSheet.swift */; };
 		AB4617723ABD066225C2F1CE /* HuggingFaceOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EC36C6BD10BC0994A33D509 /* HuggingFaceOnboardingStep.swift */; };
+		B260963A5404408389ECE2D0 /* WeightDownloadOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E5D0A5CFBDFE49616D49477 /* WeightDownloadOnboardingStep.swift */; };
 		CD276650155440AA9E48C8DE /* HFAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B128C941A3B7EFCB788F2B /* HFAuthService.swift */; };
 		CD9D8DE5CE0D00BAF2CFEF8A /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8524AC5121A0C5DCDBFD1E2 /* SidebarView.swift */; };
 		DFE03ECB9E95C68747874F43 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F64EF415D47EAFC68C350657 /* AppLogger.swift */; };
@@ -54,6 +55,7 @@
 		17A18603C13E4019F87F423F /* Animations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Animations.swift; sourceTree = "<group>"; };
 		1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		2E5D0A5CFBDFE49616D49477 /* WeightDownloadOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightDownloadOnboardingStep.swift; sourceTree = "<group>"; };
 		2EC36C6BD10BC0994A33D509 /* HuggingFaceOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HuggingFaceOnboardingStep.swift; sourceTree = "<group>"; };
 		304EFF1C5FD946198516F114 /* TrellisStudioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrellisStudioTests.swift; sourceTree = "<group>"; };
 		32232A13B2B6129105F0D725 /* DaemonManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonManager.swift; sourceTree = "<group>"; };
@@ -98,6 +100,7 @@
 				869D6915219102C0825431FF /* SettingsView.swift */,
 				C8524AC5121A0C5DCDBFD1E2 /* SidebarView.swift */,
 				FD5F577A59CB928133035D3F /* WatchdogErrorSheet.swift */,
+				2E5D0A5CFBDFE49616D49477 /* WeightDownloadOnboardingStep.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -311,6 +314,7 @@
 				87188B16B2EE10EE2936DF34 /* Theme.swift in Sources */,
 				246445A66A7DF2BCCDD89F02 /* TrellisStudioApp.swift in Sources */,
 				A78F8068F8B51E4B826A6D6C /* WatchdogErrorSheet.swift in Sources */,
+				B260963A5404408389ECE2D0 /* WeightDownloadOnboardingStep.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -60,9 +60,18 @@ final class OnboardingService: ObservableObject {
     
     func checkEnvironmentInstalled() -> Bool {
         let fm = FileManager.default
-        let pythonPath = backendDirectoryURL.appendingPathComponent(".venv/bin/python").path
-        let generatePath = backendDirectoryURL.appendingPathComponent("generate.py").path
-        return fm.fileExists(atPath: pythonPath) && fm.fileExists(atPath: generatePath)
+        let base = backendDirectoryURL
+        let requiredPaths = [
+            ".venv/bin/python",
+            "generate.py",
+            "trellis_daemon.py",
+            "download_weights.py",
+            "TRELLIS.2/trellis2/pipelines/base.py",
+            "TRELLIS.2/trellis2/modules/sparse/conv/conv_none.py",
+        ]
+        return requiredPaths.allSatisfy {
+            fm.fileExists(atPath: base.appendingPathComponent($0).path)
+        }
     }
     
     var backendDirectoryURL: URL {
