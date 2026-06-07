@@ -28,7 +28,9 @@ struct GenerationProgressView: View {
                         .foregroundColor(Theme.successGreen)
                 } else {
                     HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
+                        ProgressView()
+                            .controlSize(.small)
+                            .frame(width: 16, height: 16)
                         Button(action: { generation.cancelActive() }) {
                             HStack(spacing: 4) {
                                 Image(systemName: "xmark.circle.fill")

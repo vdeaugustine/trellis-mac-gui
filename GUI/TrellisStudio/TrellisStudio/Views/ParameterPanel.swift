@@ -85,6 +85,7 @@ struct ParameterPanel: View {
                     if generation.activeRecord != nil {
                         ProgressView()
                             .controlSize(.small)
+                            .frame(width: 16, height: 16)
                             .tint(.white)
                     } else {
                         Image(systemName: "cube.fill")

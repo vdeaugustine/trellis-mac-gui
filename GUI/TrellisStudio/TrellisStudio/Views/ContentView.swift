@@ -135,6 +135,7 @@ struct MainWorkspaceView: View {
                 if daemon.isWarmingUp || daemon.connectionStatus != nil {
                     ProgressView()
                         .controlSize(.small)
+                        .frame(width: 16, height: 16)
                         .scaleEffect(0.7)
                 }
 
