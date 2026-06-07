@@ -37,10 +37,76 @@ def uv_unwrap(vertices, faces):
     return new_vertices, new_faces, uvs, vmapping
 
 
+def _rasterize_uv_batch(valid_idx, areas, w_bbox, min_x_v, min_y_v,
+                         uv0, d00, d01, d10, d11, denom,
+                         p0, p1, p2, positions, mask):
+    """
+    Vectorized rasterization of a batch of triangles.
+
+    Enumerates all texel candidates via np.repeat + cumulative offsets,
+    computes barycentric coordinates in one pass, filters inside-triangle
+    texels, and scatters 3D positions to the output texture.
+    """
+    total = int(areas.sum())
+    if total == 0:
+        return
+
+    # Map each texel candidate back to its triangle
+    face_per_texel = np.repeat(valid_idx, areas)
+
+    # Cumulative area offsets for computing local (x, y) within each bbox
+    cumulative = np.zeros(len(areas) + 1, dtype=np.int64)
+    np.cumsum(areas, out=cumulative[1:])
+    local_offset = np.arange(total, dtype=np.int64) - np.repeat(cumulative[:-1], areas)
+
+    # Local pixel coords within each triangle's bounding box
+    w_per_texel = np.repeat(w_bbox, areas)
+    local_y = (local_offset // w_per_texel).astype(np.int32)
+    local_x = (local_offset % w_per_texel).astype(np.int32)
+
+    # Global pixel coords
+    px = local_x + np.repeat(min_x_v, areas)
+    py = local_y + np.repeat(min_y_v, areas)
+
+    # Barycentric coordinates for all candidates at once
+    fi = face_per_texel
+    dx = px.astype(np.float32) - uv0[fi, 0]
+    dy = py.astype(np.float32) - uv0[fi, 1]
+
+    inv_denom = 1.0 / denom[fi]
+    u = (dx * d11[fi] - d01[fi] * dy) * inv_denom
+    v = (d00[fi] * dy - dx * d10[fi]) * inv_denom
+    w_bary = 1.0 - u - v
+
+    # Filter to texels inside their triangle
+    inside = (u >= -0.001) & (v >= -0.001) & (w_bary >= -0.001)
+    if not inside.any():
+        return
+
+    px_in = px[inside]
+    py_in = py[inside]
+    fi_in = fi[inside]
+    u_in = u[inside]
+    v_in = v[inside]
+    w_in = w_bary[inside]
+
+    # 3D positions via barycentric interpolation
+    pos_3d = (w_in[:, None] * p0[fi_in] +
+              u_in[:, None] * p1[fi_in] +
+              v_in[:, None] * p2[fi_in])
+
+    # Scatter to texture (last-write wins, same as original)
+    positions[py_in, px_in] = pos_3d
+    mask[py_in, px_in] = True
+
+
 def _rasterize_uv_triangles(vertices, faces, uvs, texture_size):
     """
-    Rasterize all triangles in UV space. For each texel, determine which
-    triangle covers it and compute 3D position via barycentric interpolation.
+    Rasterize all triangles in UV space (vectorized).
+
+    For each texel covered by a triangle, computes the 3D world position
+    via barycentric interpolation.  The entire rasterization is done without
+    any Python-level per-triangle loop — all work is batched through NumPy.
 
     Args:
         vertices: [N, 3] mesh vertices
@@ -57,57 +123,80 @@ def _rasterize_uv_triangles(vertices, faces, uvs, texture_size):
     mask = np.zeros((H, W), dtype=bool)
 
     n_faces = len(faces)
+    if n_faces == 0:
+        return positions, mask
+
     uv_scale = np.array([W - 1, H - 1], dtype=np.float32)
 
-    for fi in range(n_faces):
-        if fi > 0 and fi % 100000 == 0:
-            print(f"    Rasterizing: {fi:,}/{n_faces:,}")
+    # Gather per-triangle vertex data (all at once)
+    i0, i1, i2 = faces[:, 0], faces[:, 1], faces[:, 2]
+    uv0 = uvs[i0] * uv_scale   # [F, 2]
+    uv1 = uvs[i1] * uv_scale
+    uv2 = uvs[i2] * uv_scale
+    p0 = vertices[i0]           # [F, 3]
+    p1 = vertices[i1]
+    p2 = vertices[i2]
 
-        i0, i1, i2 = faces[fi]
-        uv0 = uvs[i0] * uv_scale
-        uv1 = uvs[i1] * uv_scale
-        uv2 = uvs[i2] * uv_scale
-        p0, p1, p2 = vertices[i0], vertices[i1], vertices[i2]
+    # Bounding boxes in pixel space, clamped to texture bounds
+    all_uv_x = np.stack([uv0[:, 0], uv1[:, 0], uv2[:, 0]], axis=1)  # [F, 3]
+    all_uv_y = np.stack([uv0[:, 1], uv1[:, 1], uv2[:, 1]], axis=1)
+    bb_min_x = np.clip(np.floor(all_uv_x.min(axis=1)).astype(np.int32), 0, W - 1)
+    bb_max_x = np.clip(np.ceil(all_uv_x.max(axis=1)).astype(np.int32), 0, W - 1)
+    bb_min_y = np.clip(np.floor(all_uv_y.min(axis=1)).astype(np.int32), 0, H - 1)
+    bb_max_y = np.clip(np.ceil(all_uv_y.max(axis=1)).astype(np.int32), 0, H - 1)
 
-        min_x = max(int(np.floor(min(uv0[0], uv1[0], uv2[0]))), 0)
-        max_x = min(int(np.ceil(max(uv0[0], uv1[0], uv2[0]))), W - 1)
-        min_y = max(int(np.floor(min(uv0[1], uv1[1], uv2[1]))), 0)
-        max_y = min(int(np.ceil(max(uv0[1], uv1[1], uv2[1]))), H - 1)
+    # Barycentric denominator
+    d00 = uv1[:, 0] - uv0[:, 0]
+    d01 = uv2[:, 0] - uv0[:, 0]
+    d10 = uv1[:, 1] - uv0[:, 1]
+    d11 = uv2[:, 1] - uv0[:, 1]
+    denom = d00 * d11 - d01 * d10
 
-        if max_x < min_x or max_y < min_y:
-            continue
+    # Keep only non-degenerate triangles with non-empty bounding boxes
+    valid_mask = ((np.abs(denom) >= 1e-10) &
+                  (bb_max_x >= bb_min_x) &
+                  (bb_max_y >= bb_min_y))
+    valid_idx = np.where(valid_mask)[0].astype(np.int32)
 
-        d00 = uv1[0] - uv0[0]
-        d01 = uv2[0] - uv0[0]
-        d10 = uv1[1] - uv0[1]
-        d11 = uv2[1] - uv0[1]
-        denom = d00 * d11 - d01 * d10
-        if abs(denom) < 1e-10:
-            continue
-        inv_denom = 1.0 / denom
+    if len(valid_idx) == 0:
+        return positions, mask
 
-        px_range = np.arange(min_x, max_x + 1, dtype=np.float32)
-        py_range = np.arange(min_y, max_y + 1, dtype=np.float32)
-        if len(px_range) == 0 or len(py_range) == 0:
-            continue
+    # Bbox dimensions and texel counts per valid triangle
+    w_bbox = (bb_max_x[valid_idx] - bb_min_x[valid_idx] + 1).astype(np.int64)
+    h_bbox = (bb_max_y[valid_idx] - bb_min_y[valid_idx] + 1).astype(np.int64)
+    areas = w_bbox * h_bbox
 
-        px_grid, py_grid = np.meshgrid(px_range, py_range)
-        dx = px_grid - uv0[0]
-        dy = py_grid - uv0[1]
+    min_x_v = bb_min_x[valid_idx]
+    min_y_v = bb_min_y[valid_idx]
 
-        u = (dx * d11 - d01 * dy) * inv_denom
-        v = (d00 * dy - dx * d10) * inv_denom
-        w = 1.0 - u - v
+    # Process in chunks to keep memory bounded (~200 MB per chunk)
+    MAX_CANDIDATES = 20_000_000
+    total_candidates = int(areas.sum())
 
-        inside = (u >= -0.001) & (v >= -0.001) & (w >= -0.001)
-        if not inside.any():
-            continue
+    if total_candidates <= MAX_CANDIDATES:
+        _rasterize_uv_batch(
+            valid_idx, areas, w_bbox, min_x_v, min_y_v,
+            uv0, d00, d01, d10, d11, denom,
+            p0, p1, p2, positions, mask,
+        )
+    else:
+        # Split into chunks of triangles that fit in memory
+        chunk_start = 0
+        n_valid = len(valid_idx)
+        while chunk_start < n_valid:
+            cum = np.cumsum(areas[chunk_start:])
+            chunk_end = chunk_start + int(np.searchsorted(cum, MAX_CANDIDATES, side="right"))
+            chunk_end = max(chunk_end, chunk_start + 1)
+            chunk_end = min(chunk_end, n_valid)
 
-        pos_3d = w[..., None] * p0 + u[..., None] * p1 + v[..., None] * p2
-
-        iy, ix = np.where(inside)
-        positions[py_range.astype(int)[iy], px_range.astype(int)[ix]] = pos_3d[iy, ix]
-        mask[py_range.astype(int)[iy], px_range.astype(int)[ix]] = True
+            sl = slice(chunk_start, chunk_end)
+            _rasterize_uv_batch(
+                valid_idx[sl], areas[sl], w_bbox[sl],
+                min_x_v[sl], min_y_v[sl],
+                uv0, d00, d01, d10, d11, denom,
+                p0, p1, p2, positions, mask,
+            )
+            chunk_start = chunk_end
 
     return positions, mask
 

@@ -1,8 +1,9 @@
 """
 Pure-Python/PyTorch mesh extraction from sparse voxel dual-grid.
 
-Replaces the CUDA-only o_voxel._C hashmap operations with Python dicts.
-Produces identical output to the CUDA version for inference.
+Replaces the CUDA-only o_voxel._C hashmap operations with a vectorized
+flat-array spatial hash (numpy). Produces identical output to the CUDA
+version for inference.
 """
 
 import torch
@@ -83,12 +84,19 @@ def flexible_dual_grid_to_mesh(
 
     N = dual_vertices.shape[0]
 
-    # Build coordinate lookup on CPU
-    coords_cpu = coords.cpu()
-    coord_to_idx = {}
-    for i in range(N):
-        key = (coords_cpu[i, 0].item(), coords_cpu[i, 1].item(), coords_cpu[i, 2].item())
-        coord_to_idx[key] = i
+    # Build spatial hash lookup (vectorized — no per-element .item() calls)
+    coords_np = coords.cpu().numpy().astype(np.int64)
+    min_c = coords_np.min(axis=0)
+    shifted = coords_np - min_c          # shift to non-negative
+    dims = shifted.max(axis=0) + 1       # extent per axis
+    stride_y = int(dims[2])
+    stride_x = int(dims[1]) * stride_y
+
+    # Flat keys: unique integer per coordinate triple
+    coord_keys = shifted[:, 0] * stride_x + shifted[:, 1] * stride_y + shifted[:, 2]
+    lookup_size = int(coord_keys.max()) + 1
+    lookup = np.full(lookup_size, 0xFFFFFFFF, dtype=np.int64)
+    lookup[coord_keys] = np.arange(N, dtype=np.int64)
 
     # Find connected voxels for each intersected edge
     edge_neighbor_voxel = coords.reshape(N, 1, 1, 3) + _edge_neighbor_voxel_offset
@@ -98,14 +106,22 @@ def flexible_dual_grid_to_mesh(
     if M == 0:
         return torch.zeros(0, 3, device=device), torch.zeros(0, 3, dtype=torch.long, device=device)
 
-    # Look up neighbor indices via dict
-    connected_cpu = connected_voxel.cpu().reshape(-1, 3)
-    indices = []
-    for j in range(connected_cpu.shape[0]):
-        key = (connected_cpu[j, 0].item(), connected_cpu[j, 1].item(), connected_cpu[j, 2].item())
-        indices.append(coord_to_idx.get(key, 0xFFFFFFFF))
+    # Vectorized neighbor index lookup via spatial hash
+    conn_np = connected_voxel.cpu().numpy().reshape(-1, 3).astype(np.int64)
+    conn_shifted = conn_np - min_c
+    conn_keys = conn_shifted[:, 0] * stride_x + conn_shifted[:, 1] * stride_y + conn_shifted[:, 2]
 
-    connected_voxel_indices = torch.tensor(indices, dtype=torch.int64, device=device).reshape(M, 4)
+    # Bounds check: keys outside the lookup table → invalid
+    in_bounds = (
+        np.all(conn_shifted >= 0, axis=1) &
+        np.all(conn_shifted < dims, axis=1) &
+        (conn_keys < lookup_size) &
+        (conn_keys >= 0)
+    )
+    result = np.full(len(conn_keys), 0xFFFFFFFF, dtype=np.int64)
+    result[in_bounds] = lookup[conn_keys[in_bounds]]
+
+    connected_voxel_indices = torch.tensor(result, dtype=torch.int64, device=device).reshape(M, 4)
     connected_voxel_valid = (connected_voxel_indices != 0xFFFFFFFF).all(dim=1)
     quad_indices = connected_voxel_indices[connected_voxel_valid].long()
     L = quad_indices.shape[0]
