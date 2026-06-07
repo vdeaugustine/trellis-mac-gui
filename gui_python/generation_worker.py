@@ -78,7 +78,7 @@ class GenerationWorker(QObject):
     # ------------------------------------------------------------------ start
 
     def start(self, argv: list[str], hf_token: Optional[str] = None,
-              watchdog_safe: bool = False) -> None:
+              watchdog_safe: bool = False, sparse_conv_none: bool = False) -> None:
         # Re-entrancy guard: never spawn a second generation while one runs —
         # two GPU processes contend for MPS memory and are unsafe (README).
         if self.is_running():
@@ -98,7 +98,8 @@ class GenerationWorker(QObject):
         proc.setProgram(VENV_PYTHON)
         proc.setArguments([target_script(), *argv])
         proc.setWorkingDirectory(REPO_ROOT)
-        proc.setProcessEnvironment(self._build_env(hf_token, watchdog_safe))
+        proc.setProcessEnvironment(
+            self._build_env(hf_token, watchdog_safe, sparse_conv_none))
         proc.setProcessChannelMode(QProcess.SeparateChannels)
 
         proc.readyReadStandardOutput.connect(self._on_stdout)
@@ -133,8 +134,8 @@ class GenerationWorker(QObject):
 
     # ------------------------------------------------------------- env / read
 
-    def _build_env(self, hf_token: Optional[str],
-                   watchdog_safe: bool = False) -> QProcessEnvironment:
+    def _build_env(self, hf_token: Optional[str], watchdog_safe: bool = False,
+                   sparse_conv_none: bool = False) -> QProcessEnvironment:
         """Mirror DaemonRuntimeEnvironment.make() from the Swift app."""
         env = QProcessEnvironment.systemEnvironment()
         env.insert("PYTHONUNBUFFERED", "1")
@@ -148,7 +149,10 @@ class GenerationWorker(QObject):
         if watchdog_safe:
             # Metal-debugger mode extends the GPU watchdog timeout (generate.py:111).
             env.insert("MTL_CAPTURE_ENABLED", "1")
-        # Intentionally do NOT set SPARSE_CONV_BACKEND — generate.py auto-detects.
+        if sparse_conv_none:
+            # Slow fallback path — explicit opt-in only. Otherwise generate.py
+            # auto-detects (flex_gemm when available).
+            env.insert("SPARSE_CONV_BACKEND", "none")
         return env
 
     def _on_stdout(self) -> None:

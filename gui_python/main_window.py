@@ -16,6 +16,7 @@ from . import cli_args
 from . import error_classifier
 from . import output_store
 from . import progress_parser
+from . import system_info
 from .generation_worker import GenerationWorker
 from .settings import AppSettings
 from .widgets.error_panel import ErrorPanel
@@ -25,6 +26,7 @@ from .widgets.progress_panel import ProgressPanel
 from .widgets.results_panel import ResultsPanel
 from .widgets.settings_dialog import SettingsDialog
 from .widgets.storage_panel import StoragePanel
+from .widgets.system_status_panel import SystemStatusPanel
 
 
 class MainWindow(QMainWindow):
@@ -38,6 +40,7 @@ class MainWindow(QMainWindow):
         self._connect_worker()
         self._output_dir: str | None = None
         self._running = False
+        self._last_run_params: dict | None = None  # what actually ran last
         # One-time advisory hints we don't want to repeat every run.
         self._heavy_combo_ack = False
         self._first_run_hint_shown = False
@@ -59,18 +62,22 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.image_area, 1)
 
         self.params = ParameterPanel()
+        self.params.params_changed.connect(self._on_params_changed)
         left_layout.addWidget(self.params)
 
         self.generate_btn = QPushButton("Generate")
         self.generate_btn.clicked.connect(self._on_generate_clicked)
         left_layout.addWidget(self.generate_btn)
 
-        # Right column: progress + error + results + storage (scrollable).
+        # Right column: system readout + progress + error + results + storage.
         right = QWidget()
         right_layout = QVBoxLayout(right)
+        self.system_status = SystemStatusPanel(self.params.params())
+        right_layout.addWidget(self.system_status)
         self.progress = ProgressPanel()
         right_layout.addWidget(self.progress)
         self.error_panel = ErrorPanel()
+        self.error_panel.retry_with_protection.connect(self._retry_with_protection)
         right_layout.addWidget(self.error_panel)
         self.results = ResultsPanel()
         right_layout.addWidget(self.results)
@@ -113,6 +120,9 @@ class MainWindow(QMainWindow):
         self._worker.cancelled.connect(self._on_cancelled)
         self._worker.failed_to_start.connect(self._on_failed_to_start)
 
+    def _on_params_changed(self) -> None:
+        self.system_status.update_for_params(self.params.params())
+
     # --------------------------------------------------------------- events
 
     def _open_settings(self) -> None:
@@ -146,17 +156,41 @@ class MainWindow(QMainWindow):
         if not self._run_preflight(image_path):
             return
 
-        output_base = self._settings.output_base
-        self._output_dir = cli_args.make_output_dir(base=output_base)
+        params = self.params.params()
+        self._launch(image_path, params,
+                     watchdog_safe=self._effective_watchdog_safe(params))
+
+    def _launch(self, image_path: str, params: dict, watchdog_safe: bool) -> None:
+        """Build the output dir + argv and start the worker for `params`."""
+        self._last_run_params = dict(params)
+        self._output_dir = cli_args.make_output_dir(base=self._settings.output_base)
         os.makedirs(self._output_dir, exist_ok=True)
-        argv = cli_args.build_argv(image_path, self.params.params(), self._output_dir)
+        argv = cli_args.build_argv(image_path, params, self._output_dir)
 
         self._enter_running_state()
         self._worker.start(
             argv,
             hf_token=self._settings.effective_hf_token(),
-            watchdog_safe=self._settings.watchdog_safe_mode,
+            watchdog_safe=watchdog_safe,
+            sparse_conv_none=self._settings.sparse_conv_none,
         )
+
+    def _effective_watchdog_safe(self, params: dict) -> bool:
+        """Decide whether to set MTL_CAPTURE_ENABLED=1 for this run.
+
+        `auto` (default) protects long/heavy renders or runs under display load;
+        `on`/`off` are hard overrides. Auto-protecting is what makes high-res
+        "just work" without the user touching anything.
+        """
+        mode = self._settings.watchdog_mode
+        if mode == "on":
+            return True
+        if mode == "off":
+            return False
+        assessment = system_info.assess_memory(params)
+        heavy = (params.get("pipeline_type") in ("1024", "1024_cascade")
+                 or assessment.verdict in ("tight", "risky"))
+        return heavy or system_info.has_external_display()
 
     def _run_preflight(self, image_path: str) -> bool:
         """Cheap up-front checks. Returns False to abort the run."""
@@ -181,16 +215,34 @@ class MainWindow(QMainWindow):
                     "Continue anyway?"):
                 return False
 
-        # Advisory: heaviest combo is most likely to OOM / hit the watchdog.
-        if cli_args.is_heavy_combo(params) and not self._heavy_combo_ack:
+        # Advisory: real memory headroom for THESE params vs. this machine's
+        # actual RAM (psutil-driven) — NOT a hardcoded 24 GB threshold.
+        assessment = system_info.assess_memory(params)
+        peak_txt = output_store.human_size(assessment.estimated_peak)
+        ram_txt = output_store.human_size(assessment.total_ram)
+
+        if assessment.verdict == "risky" and not self._heavy_combo_ack:
             if not self._confirm(
-                    "Heavy settings",
-                    "1024 Cascade + 2048 texture is the heaviest setting "
-                    "(~18 GB peak memory) and may run out of memory or hit the "
-                    "GPU watchdog on machines with under 24 GB.\n\n"
-                    "Continue with these settings?"):
+                    "Memory may be insufficient",
+                    f"These settings are estimated to peak around {peak_txt} of "
+                    f"unified memory, but this Mac has {ram_txt} total — the run "
+                    f"may run out of memory.\n\nTo make it fit you can lower the "
+                    f"texture size, switch to pipeline 1024 or 512, or use "
+                    f"Geometry only. You can also proceed and see how it goes.\n\n"
+                    f"Proceed anyway?"):
                 return False
             self._heavy_combo_ack = True
+        elif assessment.verdict == "tight" and not self._heavy_combo_ack:
+            if not self._confirm(
+                    "Heavy settings",
+                    f"Estimated peak ~{peak_txt} of {ram_txt} unified memory — it "
+                    f"should fit, but close memory-heavy apps for headroom. "
+                    f"Watchdog protection will be enabled automatically.\n\n"
+                    f"Continue?"):
+                return False
+            self._heavy_combo_ack = True
+        # comfortable / unknown: no blocking dialog. (Plenty of headroom — the
+        # persistent System panel already shows the verdict + display count.)
 
         # Advisory: first-run gated weights need a token.
         if (not self._first_run_hint_shown
@@ -240,10 +292,41 @@ class MainWindow(QMainWindow):
     def _on_finished_err(self, code: int, tail: str,
                          stdout_tail: str, stderr_tail: str) -> None:
         info = error_classifier.classify(code, stdout_tail, stderr_tail)
+        info = self._refine_error(info)
         self.progress.set_stage(f"Failed: {info.title}")
         self.error_panel.show_error(info, tail)
         self.storage.refresh()
         self._exit_running_state()
+
+    def _refine_error(self, info):
+        """Make memory errors hardware-aware: if the GPU reported OOM but this
+        machine had ample RAM for the run, the real culprit is almost certainly
+        the watchdog — relabel rather than tell the user to reduce quality."""
+        if info.kind == "mps_oom" and self._last_run_params:
+            a = system_info.assess_memory(self._last_run_params)
+            if a.verdict == "comfortable":
+                ram = output_store.human_size(a.total_ram)
+                peak = output_store.human_size(a.estimated_peak)
+                new_message = (
+                    info.message + f" But this Mac has {ram} unified memory and "
+                    f"the estimated peak was only ~{peak}, so RAM is unlikely to "
+                    f"be the real cause — this is more likely the GPU watchdog "
+                    f"under display load.")
+                new_suggestions = (error_classifier._WATCHDOG_LEVERS
+                                   + list(info.suggestions))
+                info = info._replace(message=new_message,
+                                     suggestions=new_suggestions)
+        return info
+
+    def _retry_with_protection(self) -> None:
+        """Re-run the SAME settings with watchdog protection forced on."""
+        if self._running or not self._last_run_params:
+            return
+        image_path = self.image_area.path
+        if not image_path:
+            return
+        self.error_panel.hide_error()
+        self._launch(image_path, self._last_run_params, watchdog_safe=True)
 
     def _on_cancelled(self) -> None:
         self.progress.set_stage("Cancelled")

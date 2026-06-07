@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QPushButton,
     QSpinBox, QVBoxLayout, QWidget,
@@ -24,6 +25,10 @@ _SEED_MIN, _SEED_MAX = 0, 999_999
 
 class ParameterPanel(QWidget):
     """Collects seed, pipeline type, texture options, and step override."""
+
+    # Emitted whenever any control that affects params() changes, so the
+    # hardware/headroom readout can update live.
+    params_changed = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -86,7 +91,18 @@ class ParameterPanel(QWidget):
 
         layout.addWidget(group)
 
+        # Emit params_changed when any param-affecting control changes.
+        self.pipeline_combo.currentIndexChanged.connect(self._emit_changed)
+        self.texture_combo.currentIndexChanged.connect(self._emit_changed)
+        self.no_texture_check.toggled.connect(self._emit_changed)
+        self.steps_check.toggled.connect(self._emit_changed)
+        self.steps_spin.valueChanged.connect(self._emit_changed)
+        self.seed_spin.valueChanged.connect(self._emit_changed)
+
     # --------------------------------------------------------------- actions
+
+    def _emit_changed(self, *_args) -> None:
+        self.params_changed.emit()
 
     def randomize_seed(self) -> None:
         self.seed_spin.setValue(random.randint(1, _SEED_MAX))

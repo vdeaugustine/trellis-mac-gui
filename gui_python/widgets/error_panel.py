@@ -2,17 +2,23 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QGroupBox, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget,
 )
 
 from ..error_classifier import ErrorInfo
 
+# Error kinds where a same-quality, watchdog-protected retry makes sense.
+_RETRYABLE_KINDS = {"watchdog", "mps_oom", "oom_killed"}
+
 
 class ErrorPanel(QWidget):
     """Shows the error title, explanation, a bulleted suggestion list, and a
     collapsible details/log view. Hidden until show_error()."""
+
+    # User asked to re-run the same settings with watchdog protection on.
+    retry_with_protection = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -35,6 +41,11 @@ class ErrorPanel(QWidget):
         self.suggestions_label.setWordWrap(True)
         self.suggestions_label.setTextFormat(Qt.RichText)
         box.addWidget(self.suggestions_label)
+
+        self.retry_btn = QPushButton("Retry with watchdog protection")
+        self.retry_btn.clicked.connect(self.retry_with_protection)
+        self.retry_btn.setVisible(False)
+        box.addWidget(self.retry_btn)
 
         self.details_toggle = QPushButton("Show details ▸")
         self.details_toggle.setCheckable(True)
@@ -60,6 +71,8 @@ class ErrorPanel(QWidget):
             self.suggestions_label.setVisible(True)
         else:
             self.suggestions_label.setVisible(False)
+        # Offer a one-click protected retry for watchdog/OOM-style failures.
+        self.retry_btn.setVisible(info.kind in _RETRYABLE_KINDS)
         self.details.setPlainText(details or "(no output captured)")
         self.setVisible(True)
 

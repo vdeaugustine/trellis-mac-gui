@@ -20,7 +20,11 @@ _APP = "TrellisStudioPython"
 
 _KEY_HF_TOKEN = "hf_token"
 _KEY_OUTPUT_BASE = "output_base"
-_KEY_WATCHDOG_SAFE = "watchdog_safe_mode"
+_KEY_WATCHDOG_SAFE = "watchdog_safe_mode"   # legacy bool key (migrated)
+_KEY_WATCHDOG_MODE = "watchdog_mode"        # "auto" | "on" | "off"
+_KEY_SPARSE_CONV_NONE = "sparse_conv_none"
+
+WATCHDOG_MODES = ("auto", "on", "off")
 
 
 class AppSettings:
@@ -54,16 +58,33 @@ class AppSettings:
     def output_base(self, value: str) -> None:
         self._s.setValue(_KEY_OUTPUT_BASE, value or "")
 
-    # ---- Watchdog-safe mode ------------------------------------------------
+    # ---- Watchdog protection mode (auto / on / off) ------------------------
 
     @property
-    def watchdog_safe_mode(self) -> bool:
-        # QSettings stores bools as strings on some platforms.
-        val = self._s.value(_KEY_WATCHDOG_SAFE, False)
+    def watchdog_mode(self) -> str:
+        """One of WATCHDOG_MODES; default 'auto'. Migrates the legacy bool key."""
+        val = str(self._s.value(_KEY_WATCHDOG_MODE, "") or "").lower()
+        if val in WATCHDOG_MODES:
+            return val
+        legacy = self._s.value(_KEY_WATCHDOG_SAFE, None)
+        if legacy is not None and str(legacy).lower() in ("1", "true", "yes"):
+            return "on"
+        return "auto"
+
+    @watchdog_mode.setter
+    def watchdog_mode(self, value: str) -> None:
+        self._s.setValue(
+            _KEY_WATCHDOG_MODE, value if value in WATCHDOG_MODES else "auto")
+
+    # ---- Fallback sparse-conv backend (slow path, opt-in) ------------------
+
+    @property
+    def sparse_conv_none(self) -> bool:
+        val = self._s.value(_KEY_SPARSE_CONV_NONE, False)
         if isinstance(val, str):
             return val.lower() in ("1", "true", "yes")
         return bool(val)
 
-    @watchdog_safe_mode.setter
-    def watchdog_safe_mode(self, value: bool) -> None:
-        self._s.setValue(_KEY_WATCHDOG_SAFE, bool(value))
+    @sparse_conv_none.setter
+    def sparse_conv_none(self, value: bool) -> None:
+        self._s.setValue(_KEY_SPARSE_CONV_NONE, bool(value))

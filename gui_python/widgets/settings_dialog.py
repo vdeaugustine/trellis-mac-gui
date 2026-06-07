@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QCheckBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget,
+    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
+    QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget,
 )
 
 from ..settings import AppSettings
+
+_WATCHDOG_LABELS = [
+    ("Auto (recommended)", "auto"),
+    ("Always on", "on"),
+    ("Off", "off"),
+]
 
 
 class SettingsDialog(QDialog):
@@ -37,18 +43,27 @@ class SettingsDialog(QDialog):
         folder_row.addWidget(browse)
         form.addRow("Output folder", _wrap(folder_row))
 
-        # Watchdog-safe mode.
-        self.watchdog_check = QCheckBox(
-            "Watchdog-safe mode (sets MTL_CAPTURE_ENABLED=1 to extend the GPU "
-            "watchdog timeout)")
-        self.watchdog_check.setChecked(settings.watchdog_safe_mode)
-        form.addRow("", self.watchdog_check)
+        # Watchdog protection mode (Auto / On / Off).
+        self.watchdog_combo = QComboBox()
+        for label, value in _WATCHDOG_LABELS:
+            self.watchdog_combo.addItem(label, value)
+        idx = self.watchdog_combo.findData(settings.watchdog_mode)
+        self.watchdog_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        form.addRow("Watchdog protection", self.watchdog_combo)
+
+        # Fallback sparse-conv backend (slow path, opt-in).
+        self.sparse_check = QCheckBox(
+            "Use slower fallback backend (SPARSE_CONV_BACKEND=none)")
+        self.sparse_check.setChecked(settings.sparse_conv_none)
+        form.addRow("", self.sparse_check)
 
         layout.addLayout(form)
 
         hint = QLabel(
-            "The token falls back to the HF_TOKEN environment variable if left "
-            "blank. Output folder is where each run's files are written.")
+            "Watchdog protection sets MTL_CAPTURE_ENABLED=1, which extends the "
+            "macOS GPU watchdog timeout. Auto enables it for heavy renders or "
+            "when an external display is attached. The token falls back to the "
+            "HF_TOKEN environment variable if blank.")
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #888;")
         layout.addWidget(hint)
@@ -69,7 +84,8 @@ class SettingsDialog(QDialog):
         base = self.output_edit.text().strip()
         if base:
             self._settings.output_base = base
-        self._settings.watchdog_safe_mode = self.watchdog_check.isChecked()
+        self._settings.watchdog_mode = self.watchdog_combo.currentData()
+        self._settings.sparse_conv_none = self.sparse_check.isChecked()
         self.accept()
 
 

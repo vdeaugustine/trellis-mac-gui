@@ -22,14 +22,28 @@ class ErrorInfo(NamedTuple):
 
 
 # Suggestion blocks reused across kinds.
+#
+# The GPU watchdog is about Metal kernel DURATION and display/WindowServer load,
+# NOT total memory — so its real levers come first, and "lower quality" is an
+# explicit last resort, never the headline.
+_WATCHDOG_LEVERS = [
+    "Run headless: close the lid / unplug external displays, then retry. "
+    "The watchdog tightens under display / WindowServer load.",
+    "Enable Watchdog protection (MTL_CAPTURE_ENABLED=1, which extends the GPU "
+    "watchdog timeout). This is auto-enabled for heavy or display-loaded runs; "
+    "you can force it On in Settings.",
+    "Try the slower fallback backend (SPARSE_CONV_BACKEND=none) from Settings.",
+]
+_QUALITY_FALLBACK = [
+    "As a last resort, lower quality: smaller texture size, pipeline 1024 / 512, "
+    "or Geometry only.",
+]
+# For genuinely RAM-bound failures (mps_oom / oom_killed) reducing settings is
+# the correct primary fix.
 _SAFER_SETTINGS = [
     "Use pipeline type 512 instead of 1024 / 1024 Cascade.",
     "Lower the texture size (e.g. 1024 instead of 2048), or use Geometry only.",
     "Close memory-heavy apps and other windows, then retry.",
-]
-_WATCHDOG_EXTRA = [
-    "Run headless: close the lid / unplug external displays and retry.",
-    "Enable Watchdog-safe mode in Settings (sets MTL_CAPTURE_ENABLED=1).",
 ]
 
 
@@ -118,8 +132,9 @@ def classify(exit_code: int, stdout_tail: str, stderr_tail: str) -> ErrorInfo:
             "watchdog",
             "GPU watchdog stopped the render",
             "macOS killed a long-running GPU kernel before the mesh finished. "
-            "This is common under display load or with the heaviest settings.",
-            _SAFER_SETTINGS + _WATCHDOG_EXTRA,
+            "This is about kernel duration and display load, not total memory — "
+            "so it can happen even with plenty of free RAM.",
+            _WATCHDOG_LEVERS + _QUALITY_FALLBACK,
         )
 
     # 7. Killed by the OS (137 = 128+9 SIGKILL, or negative signal code) —

@@ -62,16 +62,42 @@ A small, curated settings dialog:
   weights (TRELLIS.2-4B, DINOv3, RMBG-2.0).
 - **Output folder** — where per-run output folders are created (default
   `<repo>/gui_output`).
-- **Watchdog-safe mode** — sets `MTL_CAPTURE_ENABLED=1`, which extends the macOS
-  GPU watchdog timeout. Enable this if generations fail with a watchdog error.
+- **Watchdog protection** — `Auto` / `On` / `Off`. Sets `MTL_CAPTURE_ENABLED=1`,
+  which extends the macOS GPU watchdog timeout. **Auto** (default) enables it for
+  heavy renders (pipeline 1024 / 1024 Cascade), tight/risky memory, or when an
+  external display is attached — so high-res "just works" without fiddling.
+- **Fallback backend** — opt-in `SPARSE_CONV_BACKEND=none` (slower path) for
+  stubborn watchdog cases.
+
+## Hardware-aware memory guidance
+
+The System panel always shows your real hardware and headroom, e.g.
+`Apple M4 Max · 64 GB unified · est. peak ~18 GB ✓ comfortable · Displays: 1`,
+and updates live as you change settings. RAM comes from `psutil`; the per-setting
+peak is an estimate anchored to the documented ~18 GB at the heaviest combo.
+
+The pre-run warning is **hardware-aware**: it compares the estimated peak to your
+*actual* RAM (not a hardcoded threshold). If RAM comfortably exceeds the estimate
+(verdict `comfortable`), there is **no warning** — so a 64 GB machine isn't nagged
+about an 18 GB render. Only `tight` / `risky` verdicts prompt, with accurate
+numbers and real options.
 
 ## Error handling
 
 Failed runs are classified from the subprocess exit code and output, and shown
 with concrete next steps: missing image, Hugging Face auth/gated, network,
 disk-full, GPU out-of-memory, GPU watchdog, and OS-killed (out of memory). The
-detection strings match the native Swift app's logic. The wrapper never runs two
-generations at once (concurrent GPU jobs are unsafe).
+detection strings match the native Swift app's logic.
+
+The **GPU watchdog** is the most common real failure on Apple Silicon and is
+about Metal *kernel duration + display load, not total memory* — so its advice
+leads with the real levers (run headless / reduce display load / watchdog
+protection / fallback backend) and treats "lower quality" as a last resort. For
+watchdog/OOM errors a **"Retry with watchdog protection"** button re-runs the
+*same quality* with `MTL_CAPTURE_ENABLED=1` in one click. If the GPU reports OOM
+but your machine had ample RAM, the message is relabeled to point at the watchdog
+instead of telling you to reduce quality. The wrapper never runs two generations
+at once (concurrent GPU jobs are unsafe).
 
 ## Testing without a GPU run
 
