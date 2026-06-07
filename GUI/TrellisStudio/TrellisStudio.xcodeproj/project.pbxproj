@@ -10,6 +10,7 @@
 		058EB80336859BE87391DBF3 /* HistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F327A6E3ABB64075214FA8 /* HistoryService.swift */; };
 		11C0E73CC232004EDAED5539 /* GenerationStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BE4D543A460BD8A811FD71 /* GenerationStatus.swift */; };
 		1C88F9D73CDA649738007721 /* DaemonManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32232A13B2B6129105F0D725 /* DaemonManager.swift */; };
+		1D6A51FDC3E84B5EB4D09F21 /* DaemonRuntimeSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CC68AE2F413437A84B44E19 /* DaemonRuntimeSupport.swift */; };
 		1C89DC874A7E17C02915BC63 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BAF8DEC550980B71B79146FF /* Assets.xcassets */; };
 		246445A66A7DF2BCCDD89F02 /* TrellisStudioApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3800E24E6485AC14E9A44CB0 /* TrellisStudioApp.swift */; };
 		2C623F2967EB94AB9E782415 /* ModelViewerPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E422307C0BAC7A33F440BC5C /* ModelViewerPanel.swift */; };
@@ -75,6 +76,7 @@
 		869D6915219102C0825431FF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		87B4622074EB1E6AF9C7F104 /* GenerationProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationProgressView.swift; sourceTree = "<group>"; };
 		89B128C941A3B7EFCB788F2B /* HFAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HFAuthService.swift; sourceTree = "<group>"; };
+		9CC68AE2F413437A84B44E19 /* DaemonRuntimeSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonRuntimeSupport.swift; sourceTree = "<group>"; };
 		B0F327A6E3ABB64075214FA8 /* HistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryService.swift; sourceTree = "<group>"; };
 		BAF8DEC550980B71B79146FF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C8524AC5121A0C5DCDBFD1E2 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
@@ -130,6 +132,7 @@
 				F64EF415D47EAFC68C350657 /* AppLogger.swift */,
 				CB57077658E0F96AF0088661 /* CleanupService.swift */,
 				32232A13B2B6129105F0D725 /* DaemonManager.swift */,
+				9CC68AE2F413437A84B44E19 /* DaemonRuntimeSupport.swift */,
 				1649441A8794A6B88061C95B /* GenerationService.swift */,
 				89B128C941A3B7EFCB788F2B /* HFAuthService.swift */,
 				B0F327A6E3ABB64075214FA8 /* HistoryService.swift */,
@@ -309,6 +312,7 @@
 				516664464B2596F1FE655438 /* CleanupSettingsTab.swift in Sources */,
 				91C7F636E1C9121C00D7F3E9 /* ContentView.swift in Sources */,
 				1C88F9D73CDA649738007721 /* DaemonManager.swift in Sources */,
+				1D6A51FDC3E84B5EB4D09F21 /* DaemonRuntimeSupport.swift in Sources */,
 				EA3D5EDA29B4C6F9D1EB57D2 /* GenerationParameters.swift in Sources */,
 				91755BBABFDB5AB7B37E218C /* GenerationProgressView.swift in Sources */,
 				7D95DD5F806B8E222A8946D7 /* GenerationRecord.swift in Sources */,

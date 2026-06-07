@@ -17,7 +17,7 @@ def send(data):
 
 
 def main():
-    from huggingface_hub import hf_hub_download, HfApi
+    from huggingface_hub import hf_hub_download, snapshot_download
 
     repo_id = "microsoft/TRELLIS.2-4B"
 
@@ -59,7 +59,18 @@ def main():
                 "safetensors": f"{path}.safetensors",
             })
 
-    total = len(files_to_download)
+    # Also download image conditioning models referenced in the config
+    extra_models = []
+    args = config.get("args", {})
+    image_cond = args.get("image_cond_model", {}).get("args", {})
+    rembg = args.get("rembg_model", {}).get("args", {})
+
+    if "repo_id" in image_cond:
+        extra_models.append(("image_cond", image_cond["repo_id"]))
+    if "repo_id" in rembg:
+        extra_models.append(("rembg", rembg["repo_id"]))
+
+    total = len(files_to_download) + len(extra_models)
     completed = 0
     errors = []
 
@@ -87,6 +98,7 @@ def main():
                     "stage": "download",
                     "status": "error",
                     "model": name,
+                    "repo": repo,
                     "file": file_key,
                     "message": err_msg,
                 })
@@ -96,20 +108,10 @@ def main():
             "stage": "download",
             "status": "done",
             "model": name,
+            "repo": repo,
             "current": completed,
             "total": total,
         })
-
-    # Also download image conditioning models referenced in the config
-    extra_models = []
-    args = config.get("args", {})
-    image_cond = args.get("image_cond_model", {}).get("args", {})
-    rembg = args.get("rembg_model", {}).get("args", {})
-
-    if "repo_id" in image_cond:
-        extra_models.append(("image_cond", image_cond["repo_id"]))
-    if "repo_id" in rembg:
-        extra_models.append(("rembg", rembg["repo_id"]))
 
     for label, extra_repo in extra_models:
         send({
@@ -117,17 +119,21 @@ def main():
             "status": "downloading",
             "model": label,
             "repo": extra_repo,
-            "message": f"Verifying access to {extra_repo}…",
+            "current": completed,
+            "total": total,
+            "message": f"Downloading {extra_repo}…",
         })
         try:
-            # Just verify we can access the repo — actual download happens at inference
-            api = HfApi()
-            api.repo_info(extra_repo)
+            snapshot_download(extra_repo)
+            completed += 1
             send({
                 "stage": "download",
                 "status": "done",
                 "model": label,
-                "message": f"Access verified: {extra_repo}",
+                "repo": extra_repo,
+                "current": completed,
+                "total": total,
+                "message": f"Downloaded: {extra_repo}",
             })
         except Exception as e:
             err_msg = str(e)[:200]

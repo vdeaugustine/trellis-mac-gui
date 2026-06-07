@@ -3,6 +3,7 @@ import SwiftUI
 /// Settings tab that shows all required models, their download status, sizes, and actions.
 struct ModelManagementTab: View {
     @ObservedObject private var catalog = ModelCatalogService.shared
+    @ObservedObject private var auth = HFAuthService.shared
     @State private var showDeleteAlert = false
     @State private var pendingDeleteEntry: ModelCatalogEntry?
     @State private var actionMessage: String?
@@ -16,7 +17,10 @@ struct ModelManagementTab: View {
                 actionBanner(msg)
             }
         }
-        .onAppear { catalog.scan() }
+        .onAppear {
+            catalog.scan()
+            refreshGatedAccess()
+        }
     }
 
     // MARK: - Header
@@ -35,7 +39,16 @@ struct ModelManagementTab: View {
                     .font(.caption)
                 }
                 .buttonStyle(.plain)
-                .disabled(catalog.isScanning)
+                .disabled(catalog.isScanning || catalog.isDownloading)
+                Button(action: { catalog.downloadAllWeights() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.down.circle")
+                        Text(catalog.isDownloading ? "Downloading" : "Download Missing")
+                    }
+                    .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .disabled(catalog.isDownloading || catalog.allDownloaded)
             }
             Text("TRELLIS.2 requires 10 model checkpoints (~15 GB) stored in your HuggingFace cache.")
                 .font(.body)
@@ -74,6 +87,27 @@ struct ModelManagementTab: View {
                     Text("Scanning…")
                         .font(.caption)
                         .foregroundColor(Theme.slateGray)
+                }
+            }
+            if catalog.isDownloading {
+                Divider().frame(height: 40)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text("Downloading Models")
+                            .font(.caption).bold()
+                    }
+                    ProgressView(
+                        value: Double(catalog.downloadProgress.completed),
+                        total: max(1, Double(catalog.downloadProgress.total))
+                    )
+                    .progressViewStyle(.linear)
+                    .tint(Theme.accentIndigo)
+                    .frame(width: 140)
+                    Text(catalog.downloadProgress.message)
+                        .font(.caption2)
+                        .foregroundColor(Theme.slateGray)
+                        .lineLimit(1)
                 }
             }
         }
@@ -185,6 +219,19 @@ struct ModelManagementTab: View {
                     .foregroundColor(Theme.slateGray)
                     .monospaced()
                     .lineLimit(1)
+                if let statusText = rowStatusText(for: entry) {
+                    HStack(spacing: 6) {
+                        Text(statusText)
+                            .font(.caption2)
+                            .foregroundColor(rowStatusColor(for: entry.status))
+                        if case .downloading(let progress) = entry.status {
+                            ProgressView(value: progress, total: 1)
+                                .progressViewStyle(.linear)
+                                .tint(Theme.accentIndigo)
+                                .frame(width: 110)
+                        }
+                    }
+                }
             }
 
             Spacer()
@@ -214,12 +261,15 @@ struct ModelManagementTab: View {
                 }
                 .buttonStyle(.plain)
                 .help("Delete cached weights")
+            } else if case .downloading = entry.status {
+                Text("In Progress")
+                    .font(.caption)
+                    .foregroundColor(Theme.accentIndigo)
             } else if entry.isGated {
-                Button(action: {
-                    let url = URL(string: "https://huggingface.co/\(entry.repoId)")!
-                    NSWorkspace.shared.open(url)
-                }) {
-                    Text("Request")
+                gatedAction(for: entry)
+            } else {
+                Button(action: { catalog.downloadAllWeights() }) {
+                    Text("Download")
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
@@ -227,6 +277,7 @@ struct ModelManagementTab: View {
                         .cornerRadius(4)
                 }
                 .buttonStyle(.plain)
+                .disabled(catalog.isDownloading)
             }
         }
         .padding(.horizontal, 16)
@@ -249,6 +300,92 @@ struct ModelManagementTab: View {
         case .error:
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(Theme.errorRed)
+        }
+    }
+
+    @ViewBuilder
+    private func gatedAction(for entry: ModelCatalogEntry) -> some View {
+        switch gatedAccessStatus(for: entry) {
+        case .granted:
+            Button(action: { catalog.downloadAllWeights() }) {
+                Text("Download")
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Theme.successGreen.opacity(0.18))
+                    .cornerRadius(4)
+            }
+            .buttonStyle(.plain)
+            .disabled(catalog.isDownloading)
+        case .checking:
+            ProgressView().controlSize(.mini)
+        default:
+            Button(action: {
+                let url = URL(string: "https://huggingface.co/\(entry.repoId)")!
+                NSWorkspace.shared.open(url)
+            }) {
+                Text("Request")
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Theme.accentIndigo.opacity(0.2))
+                    .cornerRadius(4)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func rowStatusText(for entry: ModelCatalogEntry) -> String? {
+        switch entry.status {
+        case .downloaded:
+            if entry.isGated && gatedAccessStatus(for: entry) == .granted {
+                return "Access accepted and cached locally"
+            }
+            return nil
+        case .missing:
+            if entry.isGated && gatedAccessStatus(for: entry) == .granted {
+                return "Access accepted. Download required."
+            }
+            return nil
+        case .downloading:
+            if isCurrentDownload(entry) {
+                return catalog.downloadProgress.message.isEmpty ? "Downloading…" : catalog.downloadProgress.message
+            }
+            return "Queued for download"
+        case .error(let message):
+            return message
+        }
+    }
+
+    private func rowStatusColor(for status: ModelDownloadStatus) -> Color {
+        switch status {
+        case .downloaded: return Theme.successGreen
+        case .missing: return Theme.warningAmber
+        case .downloading: return Theme.accentIndigo
+        case .error: return Theme.errorRed
+        }
+    }
+
+    private func gatedAccessStatus(for entry: ModelCatalogEntry) -> GatedModelStatus {
+        auth.gatedModels.first { $0.repoId == entry.repoId }?.status ?? .unknown
+    }
+
+    private func isCurrentDownload(_ entry: ModelCatalogEntry) -> Bool {
+        entry.id == catalog.downloadProgress.currentModelID
+            || (!catalog.downloadProgress.currentRepoID.isEmpty
+                && entry.repoId == catalog.downloadProgress.currentRepoID)
+    }
+
+    private func refreshGatedAccess() {
+        let token = HFAuthService.shared.resolveToken()
+        guard !token.isEmpty else { return }
+        Task {
+            if !auth.isTokenValid {
+                await auth.performValidation(token: token)
+            }
+            if auth.isTokenValid {
+                await auth.checkAllGatedAccess(token: token)
+            }
         }
     }
 

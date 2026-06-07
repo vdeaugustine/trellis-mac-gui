@@ -84,9 +84,15 @@ final class GenerationService: ObservableObject {
 
             // Wire up progress callbacks
             DaemonManager.shared.clearCallbacks()
+            DaemonManager.shared.clearCrashCallbacks()
             DaemonManager.shared.registerCallback { response in
                 Task { @MainActor in
                     self.handleDaemonResponse(response, for: record)
+                }
+            }
+            DaemonManager.shared.registerCrashCallback { message in
+                Task { @MainActor in
+                    self.handleDaemonCrash(message, for: record)
                 }
             }
 
@@ -167,6 +173,14 @@ final class GenerationService: ObservableObject {
         }
     }
 
+    private func handleDaemonCrash(_ message: String, for record: GenerationRecord) {
+        guard activeRecord?.id == record.id else { return }
+        record.status = .failed
+        record.errorMessage = message
+        log.error("Daemon crashed during generation: \(message)", context: "Generation")
+        finishActive()
+    }
+
     private func finishActive() {
         if let modelContext = activeRecord?.modelContext {
             do {
@@ -177,6 +191,7 @@ final class GenerationService: ObservableObject {
         }
 
         DaemonManager.shared.clearCallbacks()
+        DaemonManager.shared.clearCrashCallbacks()
         activeRecord = nil
         isProcessing = false
 

@@ -28,6 +28,12 @@ final class SettingsService: ObservableObject {
         self.defaultPipelineType = UserDefaults.standard.string(forKey: "defaultPipelineType") ?? "512"
         self.defaultTextureSize = UserDefaults.standard.integer(forKey: "defaultTextureSize") == 0 ? 1024 : UserDefaults.standard.integer(forKey: "defaultTextureSize")
         self.defaultSeed = UserDefaults.standard.integer(forKey: "defaultSeed") == 0 ? 42 : UserDefaults.standard.integer(forKey: "defaultSeed")
-        self.advancedEnvVars = UserDefaults.standard.string(forKey: "advancedEnvVars") ?? "SPARSE_CONV_BACKEND=flex_gemm"
+        let savedEnvVars = UserDefaults.standard.string(forKey: "advancedEnvVars")
+        self.advancedEnvVars = savedEnvVars == "SPARSE_CONV_BACKEND=flex_gemm"
+            ? "SPARSE_CONV_BACKEND=none"
+            : (savedEnvVars ?? "SPARSE_CONV_BACKEND=none")
+        if savedEnvVars == "SPARSE_CONV_BACKEND=flex_gemm" {
+            UserDefaults.standard.set(self.advancedEnvVars, forKey: "advancedEnvVars")
+        }
     }
 }

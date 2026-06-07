@@ -5,7 +5,7 @@ struct GenerationProgressView: View {
     var record: GenerationRecord
 
     private let orderedStages: [GenerationStatus] = [
-        .queued, .samplingStructure, .samplingShape, .samplingTexture,
+        .queued, .loadingPipeline, .samplingStructure, .samplingShape, .samplingTexture,
         .decodingShape, .decodingTexture, .extractingMesh, .bakingTexture
     ]
 

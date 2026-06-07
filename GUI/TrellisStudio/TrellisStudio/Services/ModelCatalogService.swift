@@ -8,6 +8,16 @@ enum ModelDownloadStatus: Equatable {
     case error(String)
 }
 
+/// Current download operation details for settings UI.
+struct ModelCatalogDownloadProgress {
+    var currentModelID: String = ""
+    var currentModelName: String = "Preparing download"
+    var currentRepoID: String = ""
+    var completed: Int = 0
+    var total: Int = 0
+    var message: String = ""
+}
+
 /// Represents one model checkpoint that the pipeline requires.
 struct ModelCatalogEntry: Identifiable {
     let id: String
@@ -32,6 +42,9 @@ final class ModelCatalogService: ObservableObject {
 
     @Published var entries: [ModelCatalogEntry] = []
     @Published var isScanning = false
+    @Published var isDownloading = false
+    @Published var downloadProgress = ModelCatalogDownloadProgress()
+    @Published var downloadMessage: String?
     @Published var totalSizeBytes: Int64 = 0
 
     private let hfCacheRoot: URL = {
@@ -125,7 +138,7 @@ final class ModelCatalogService: ObservableObject {
 
     /// Scans the HF cache and updates each entry's status and size.
     func scan() {
-        guard !isScanning else { return }
+        guard !isScanning, !isDownloading else { return }
         isScanning = true
 
         Task.detached { [weak self] in
@@ -243,6 +256,155 @@ final class ModelCatalogService: ObservableObject {
         scan()
     }
 
+    /// Downloads all required model weights with progress updates.
+    @MainActor
+    func downloadAllWeights() {
+        guard !isDownloading else { return }
+
+        isDownloading = true
+        downloadMessage = nil
+        downloadProgress = ModelCatalogDownloadProgress(total: entries.count)
+        markMissingEntriesAsDownloading()
+
+        Task.detached { [weak self] in
+            await self?.runDownloadScript()
+        }
+    }
+
+    private func runDownloadScript() async {
+        let backendURL = OnboardingService.shared.backendDirectoryURL
+        let pythonPath = backendURL.appendingPathComponent(".venv/bin/python").path
+        let scriptPath = backendURL.appendingPathComponent("download_weights.py").path
+
+        guard FileManager.default.fileExists(atPath: pythonPath) else {
+            await finishDownload(message: "Python venv not found", failed: true)
+            return
+        }
+        guard FileManager.default.fileExists(atPath: scriptPath) else {
+            await finishDownload(message: "Download script not found", failed: true)
+            return
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: pythonPath)
+        process.arguments = [scriptPath]
+        process.currentDirectoryURL = backendURL
+
+        var env = ProcessInfo.processInfo.environment
+        env["PYTHONUNBUFFERED"] = "1"
+        let token = HFAuthService.shared.resolveToken()
+        if !token.isEmpty { env["HF_TOKEN"] = token }
+        process.environment = env
+
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+
+        stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            guard !data.isEmpty,
+                  let output = String(data: data, encoding: .utf8) else { return }
+            for line in output.components(separatedBy: "\n") where !line.isEmpty {
+                Task { @MainActor in self?.handleDownloadLine(line) }
+            }
+        }
+
+        stderrPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            guard !data.isEmpty,
+                  let output = String(data: data, encoding: .utf8) else { return }
+            Task { @MainActor in self?.downloadMessage = output.trimmingCharacters(in: .whitespacesAndNewlines) }
+        }
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            stdoutPipe.fileHandleForReading.readabilityHandler = nil
+            stderrPipe.fileHandleForReading.readabilityHandler = nil
+
+            if process.terminationStatus == 0 {
+                await finishDownload(message: "Model download complete", failed: false)
+            } else {
+                await finishDownload(message: "Download exited with code \(process.terminationStatus)", failed: true)
+            }
+        } catch {
+            await finishDownload(message: error.localizedDescription, failed: true)
+        }
+    }
+
+    @MainActor
+    private func handleDownloadLine(_ line: String) {
+        guard let data = line.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            downloadMessage = line
+            return
+        }
+
+        let stage = json["stage"] as? String ?? ""
+        let status = json["status"] as? String ?? ""
+        let model = json["model"] as? String ?? ""
+        let repo = json["repo"] as? String ?? ""
+        let message = json["message"] as? String ?? ""
+
+        if let total = json["total"] as? Int { downloadProgress.total = total }
+        if let completed = json["current"] as? Int { downloadProgress.completed = completed }
+        if !model.isEmpty { downloadProgress.currentModelID = model }
+        if !repo.isEmpty { downloadProgress.currentRepoID = repo }
+        if !message.isEmpty {
+            downloadProgress.message = message
+            downloadMessage = message
+        }
+
+        if status == "downloading" {
+            setEntryStatus(modelID: model, repoID: repo, status: .downloading(progress: currentDownloadFraction))
+        } else if status == "done", stage == "download" {
+            setEntryStatus(modelID: model, repoID: repo, status: .downloaded)
+        } else if status == "error" || status == "gated" {
+            setEntryStatus(modelID: model, repoID: repo, status: .error(message))
+        }
+    }
+
+    @MainActor
+    private func finishDownload(message: String, failed: Bool) {
+        downloadMessage = message
+        isDownloading = false
+        if failed {
+            entries = entries.map { entry in
+                var updated = entry
+                if case .downloading = updated.status {
+                    updated.status = .missing
+                }
+                return updated
+            }
+        }
+        scan()
+    }
+
+    @MainActor
+    private func markMissingEntriesAsDownloading() {
+        entries = entries.map { entry in
+            var updated = entry
+            if updated.status == .missing {
+                updated.status = .downloading(progress: 0)
+            }
+            return updated
+        }
+    }
+
+    @MainActor
+    private func setEntryStatus(modelID: String, repoID: String, status: ModelDownloadStatus) {
+        guard let index = entries.firstIndex(where: { entry in
+            entry.id == modelID || (!repoID.isEmpty && entry.repoId == repoID && entry.isGated)
+        }) else { return }
+        entries[index].status = status
+    }
+
+    private var currentDownloadFraction: Double {
+        guard downloadProgress.total > 0 else { return 0 }
+        return Double(downloadProgress.completed) / Double(downloadProgress.total)
+    }
+
     // MARK: - Computed
 
     var downloadedCount: Int {
@@ -250,7 +412,11 @@ final class ModelCatalogService: ObservableObject {
     }
 
     var missingCount: Int {
-        entries.filter { $0.status == .missing }.count
+        entries.filter { entry in
+            if entry.status == .missing { return true }
+            if case .error = entry.status { return true }
+            return false
+        }.count
     }
 
     var allDownloaded: Bool {

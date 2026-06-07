@@ -10,7 +10,7 @@ struct WeightDownloadOnboardingStep: View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Download Model Weights")
                 .font(.title2).bold()
-            Text("TRELLIS.2 needs ~15 GB of model checkpoints from HuggingFace. This only happens once — future launches start instantly.")
+            Text("TRELLIS.2 needs ~15 GB of model files from HuggingFace. This only happens once — future launches start instantly.")
                 .font(.body)
                 .foregroundColor(Theme.slateGray)
 
@@ -53,7 +53,7 @@ struct WeightDownloadOnboardingStep: View {
                 icon: "arrow.down.doc",
                 color: Theme.accentIndigo,
                 title: "Ready to Download",
-                subtitle: "8 model checkpoints (~15 GB total)"
+                subtitle: "10 model downloads (~15 GB total)"
             )
         case .installing:
             VStack(alignment: .leading, spacing: 12) {
@@ -62,7 +62,7 @@ struct WeightDownloadOnboardingStep: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Downloading: \(downloadProgress.currentModel)")
                             .font(.headline)
-                        Text("\(downloadProgress.completed)/\(downloadProgress.total) checkpoints")
+                        Text("\(downloadProgress.completed)/\(downloadProgress.total) models")
                             .font(.caption)
                             .foregroundColor(Theme.slateGray)
                     }
@@ -329,5 +329,5 @@ struct WeightDownloadOnboardingStep: View {
 struct WeightDownloadProgress {
     var currentModel: String = ""
     var completed: Int = 0
-    var total: Int = 8
+    var total: Int = 10
 }

@@ -17,11 +17,13 @@ final class DaemonManager: ObservableObject {
     private var stderrPipe: Pipe?
     private var stdoutBuffer = Data()
     private var stderrBuffer = Data()
+    private var stderrTail = DaemonStderrTail()
     private var healthCheckTimer: Timer?
 
     @Published var isReady = false
     @Published var isWarmingUp = false
     @Published var isOffline = true
+    @Published var isPipelineLoaded = false
     @Published var lastDaemonError: String?
     /// Structured error classification for actionable UI messages.
     @Published var errorKind: DaemonErrorKind = .none
@@ -29,6 +31,7 @@ final class DaemonManager: ObservableObject {
     var isDryRun = false
 
     private var progressCallbacks: [([String: Any]) -> Void] = []
+    private var crashCallbacks: [(String) -> Void] = []
     private let log = AppLogger.shared
 
     private init() {}
@@ -44,11 +47,14 @@ final class DaemonManager: ObservableObject {
 
         self.isDryRun = dryRun
         self.isOffline = false
-        self.isWarmingUp = true
+        self.isWarmingUp = false
+        self.isReady = false
+        self.isPipelineLoaded = false
         self.lastDaemonError = nil
         self.errorKind = .none
         self.stdoutBuffer = Data()
         self.stderrBuffer = Data()
+        self.stderrTail.reset()
 
         let process = Process()
         let stdinPipe = Pipe()
@@ -84,12 +90,7 @@ final class DaemonManager: ObservableObject {
         process.arguments = arguments
         process.currentDirectoryURL = URL(fileURLWithPath: trellisPath)
 
-        var env = ProcessInfo.processInfo.environment
-        env["PYTHONUNBUFFERED"] = "1"
-        env["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-        let token = SettingsService.shared.hfToken
-        if !token.isEmpty { env["HF_TOKEN"] = token }
-        process.environment = env
+        process.environment = DaemonRuntimeEnvironment.make()
 
         // Set up readability handlers BEFORE launching (no race condition)
         stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
@@ -122,17 +123,24 @@ final class DaemonManager: ObservableObject {
                 if code == 0 {
                     self.log.info("Daemon exited normally", context: "Daemon")
                 } else if code == 2 {
-                    let msg = "GPU watchdog killed the process. Try running headless (close lid, use SSH)."
+                    let msg = self.stderrTail.crashMessage(
+                        fallback: "GPU watchdog killed the process. Try running headless (close lid, use SSH)."
+                    )
                     self.log.error(msg, context: "Daemon")
                     self.failWithError(msg)
+                    self.notifyCrashCallbacks(message: msg)
                 } else {
-                    let msg = "Daemon crashed with exit code \(code). Check stderr output above."
+                    let msg = self.stderrTail.crashMessage(
+                        fallback: "Daemon crashed with exit code \(code). Check stderr output above."
+                    )
                     self.log.error(msg, context: "Daemon")
                     self.failWithError(msg)
+                    self.notifyCrashCallbacks(message: msg)
                 }
                 self.isOffline = true
                 self.isWarmingUp = false
                 self.isReady = false
+                self.isPipelineLoaded = false
             }
         }
 
@@ -146,6 +154,7 @@ final class DaemonManager: ObservableObject {
             log.info("Working dir: \(trellisPath)", context: "Daemon")
             try process.run()
             log.info("Daemon PID: \(process.processIdentifier)", context: "Daemon")
+            sendStatusProbe()
 
             // Health check — poll process liveness every 5s
             startHealthCheck()
@@ -213,6 +222,14 @@ final class DaemonManager: ObservableObject {
         progressCallbacks.removeAll()
     }
 
+    func registerCrashCallback(_ callback: @escaping (String) -> Void) {
+        crashCallbacks.append(callback)
+    }
+
+    func clearCrashCallbacks() {
+        crashCallbacks.removeAll()
+    }
+
     // MARK: - Stdout Handling (readabilityHandler callback — no race)
 
     private func handleStdoutData(_ data: Data) {
@@ -251,14 +268,20 @@ final class DaemonManager: ObservableObject {
             for cb in self.progressCallbacks { cb(response) }
 
             // Handle daemon lifecycle events
+            if stage == "daemonStatus" {
+                self.handleDaemonStatus(response)
+                return
+            }
+
             if let stageEnum = GenerationStatus(rawValue: stage) {
                 switch stageEnum {
                 case .loadingPipeline:
+                    if status == "started" {
+                        self.isWarmingUp = true
+                        self.isReady = false
+                    }
                     if status == "done" {
-                        self.isWarmingUp = false
-                        self.isReady = true
-                        self.lastDaemonError = nil
-                        self.log.success("Pipeline loaded — ready", context: "Daemon")
+                        self.markReady(pipelineLoaded: true)
                     }
                 case .shutdown:
                     self.isReady = false
@@ -266,7 +289,9 @@ final class DaemonManager: ObservableObject {
                 case .failed:
                     let reason = response["reason"] as? String ?? "unknown"
                     let message = response["message"] as? String ?? "No details"
-                    self.failWithError("[\(reason)] \(message)")
+                    let failureMessage = "[\(reason)] \(message)"
+                    self.log.error(failureMessage, context: "Daemon")
+                    self.failWithError(failureMessage)
                 default:
                     break
                 }
@@ -286,6 +311,8 @@ final class DaemonManager: ObservableObject {
             guard let line = String(data: lineData, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines),
                   !line.isEmpty else { continue }
+
+            stderrTail.append(line)
 
             // Classify severity
             let isError = line.contains("Error") || line.contains("Traceback")
@@ -318,7 +345,10 @@ final class DaemonManager: ObservableObject {
                     self.isOffline = true
                     self.isWarmingUp = false
                     self.isReady = false
+                    self.isPipelineLoaded = false
                 }
+            } else if (!self.isReady && !self.isOffline && self.lastDaemonError == nil) || self.isWarmingUp {
+                self.sendStatusProbe()
             }
         }
     }
@@ -332,7 +362,44 @@ final class DaemonManager: ObservableObject {
             self.isOffline = true
             self.isWarmingUp = false
             self.isReady = false
+            self.isPipelineLoaded = false
         }
+    }
+
+    private func sendStatusProbe() {
+        guard stdinPipe != nil, process?.isRunning == true else { return }
+        sendRequest(command: ["command": "status"])
+    }
+
+    private func notifyCrashCallbacks(message: String) {
+        let callbacks = crashCallbacks
+        crashCallbacks.removeAll()
+        for callback in callbacks {
+            callback(message)
+        }
+    }
+
+    private func handleDaemonStatus(_ response: [String: Any]) {
+        let status = response["status"] as? String ?? ""
+        let pipelineLoaded = response["pipeline_loaded"] as? Bool ?? false
+        if status == "ready" || pipelineLoaded {
+            markReady(pipelineLoaded: pipelineLoaded)
+        } else if status == "loading" {
+            isOffline = false
+            isReady = false
+            isWarmingUp = true
+        }
+    }
+
+    private func markReady(pipelineLoaded: Bool) {
+        isOffline = false
+        isWarmingUp = false
+        isReady = true
+        isPipelineLoaded = pipelineLoaded
+        lastDaemonError = nil
+        errorKind = .none
+        let message = pipelineLoaded ? "Pipeline loaded — ready" : "Daemon ready — pipeline will load on first generation"
+        log.success(message, context: "Daemon")
     }
 
     /// Scans error text for gated-access or auth patterns.
@@ -374,6 +441,7 @@ final class DaemonManager: ObservableObject {
             self.isOffline = true
             self.isReady = false
             self.isWarmingUp = false
+            self.isPipelineLoaded = false
         }
     }
 }

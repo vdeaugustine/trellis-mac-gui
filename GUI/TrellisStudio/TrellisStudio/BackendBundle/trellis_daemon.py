@@ -9,7 +9,6 @@ import os
 import time
 import json
 import argparse
-from PIL import Image as PILImage
 
 # Monkey-patch tqdm BEFORE any TRELLIS imports to capture steps
 class PatchedTqdm:
@@ -51,15 +50,11 @@ class PatchedTqdm:
 import tqdm
 tqdm.tqdm = PatchedTqdm
 
-# Set up backends and import TRELLIS
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 os.environ.setdefault("ATTN_BACKEND", "sdpa")
 os.environ.setdefault("SPARSE_ATTN_BACKEND", "sdpa")
-try:
-    import flex_gemm
-    os.environ.setdefault("SPARSE_CONV_BACKEND", "flex_gemm")
-except (ImportError, RuntimeError):
-    os.environ.setdefault("SPARSE_CONV_BACKEND", "none")
+if "SPARSE_CONV_BACKEND" not in os.environ:
+    os.environ["SPARSE_CONV_BACKEND"] = "none"
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "TRELLIS.2"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "stubs"))
@@ -68,28 +63,47 @@ def send_response(data):
     print(json.dumps({"response": data}))
     sys.stdout.flush()
 
+def load_pipeline(args):
+    send_response({
+        "stage": "loadingPipeline",
+        "status": "started",
+        "backend": os.environ.get("SPARSE_CONV_BACKEND", "unknown"),
+    })
+    t0 = time.time()
+
+    if args.dry_run:
+        time.sleep(0.5)
+        send_response({"stage": "loadingPipeline", "status": "done", "elapsed_s": round(time.time() - t0, 2)})
+        return None
+
+    try:
+        import torch
+        from trellis2.pipelines.trellis2_image_to_3d import Trellis2ImageTo3DPipeline
+        pipeline = Trellis2ImageTo3DPipeline.from_pretrained("microsoft/TRELLIS.2-4B")
+        pipeline.to(torch.device("mps"))
+        send_response({"stage": "loadingPipeline", "status": "done", "elapsed_s": round(time.time() - t0, 2)})
+        return pipeline
+    except Exception as e:
+        send_response({
+            "stage": "failed",
+            "reason": "load_error",
+            "message": f"{type(e).__name__}: {e}",
+        })
+        raise
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true", help="Run in mock mode without loading models")
     args = parser.parse_args()
 
-    # Warmup / Load pipeline
-    send_response({"stage": "loadingPipeline", "status": "started"})
-    
-    if args.dry_run:
-        time.sleep(0.5)
-        send_response({"stage": "loadingPipeline", "status": "done"})
-        pipeline = None
-    else:
-        try:
-            import torch
-            from trellis2.pipelines.trellis2_image_to_3d import Trellis2ImageTo3DPipeline
-            pipeline = Trellis2ImageTo3DPipeline.from_pretrained("microsoft/TRELLIS.2-4B")
-            pipeline.to(torch.device("mps"))
-            send_response({"stage": "loadingPipeline", "status": "done"})
-        except Exception as e:
-            send_response({"stage": "failed", "reason": "load_error", "message": str(e)})
-            sys.exit(1)
+    send_response({
+        "stage": "daemonStatus",
+        "status": "ready",
+        "pipeline_loaded": False,
+        "message": "Daemon ready. Pipeline loads on first generation.",
+    })
+    pipeline = None
+    pipeline_loaded = False
 
     while True:
         try:
@@ -115,6 +129,13 @@ def main():
             if cmd == "shutdown":
                 send_response({"stage": "shutdown", "status": "done"})
                 break
+            if cmd == "status":
+                send_response({
+                    "stage": "daemonStatus",
+                    "status": "ready",
+                    "pipeline_loaded": pipeline_loaded,
+                })
+                continue
                 
             if cmd == "generate":
                 image_path = cmd_payload.get("image")
@@ -133,6 +154,13 @@ def main():
                 output_prefix = os.path.join(output_dir, "output_3d")
                 
                 send_response({"stage": "queued", "status": "started"})
+
+                if not pipeline_loaded:
+                    try:
+                        pipeline = load_pipeline(args)
+                        pipeline_loaded = True
+                    except Exception:
+                        continue
                 
                 if args.dry_run:
                     # Mock progression
@@ -189,6 +217,7 @@ def main():
                 
                 # Non-dry-run logic
                 import torch
+                from PIL import Image as PILImage
                 t0 = time.time()
                 sampler_overrides = {"steps": steps} if steps else {}
                 

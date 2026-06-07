@@ -238,11 +238,16 @@ struct MainWorkspaceView: View {
         if daemon.isReady { return Theme.successGreen }
         if daemon.isWarmingUp { return Theme.warningAmber }
         if daemon.lastDaemonError != nil { return Theme.errorRed }
+        if !daemon.isOffline { return Theme.warningAmber }
         return Theme.errorRed
     }
 
     private var daemonStatusText: String {
-        if daemon.isReady { return "Backend Ready" }
+        if daemon.isReady {
+            return daemon.isPipelineLoaded
+                ? "Backend Ready"
+                : "Backend Ready — pipeline loads on first generation"
+        }
         if daemon.isWarmingUp { return "Loading Pipeline… (this takes ~2 min on first launch)" }
         if case .gatedAccess = daemon.errorKind {
             return "Model access required — see below"
@@ -251,6 +256,7 @@ struct MainWorkspaceView: View {
             return "HuggingFace login required — see below"
         }
         if let err = daemon.lastDaemonError { return "Backend Error: \(err)" }
+        if !daemon.isOffline { return "Backend Starting…" }
         return "Backend Offline"
     }
 
