@@ -1,12 +1,10 @@
 import Foundation
 
-/// Knows every location Trellis Studio writes to on disk and can remove them.
+/// A service that tracks and manages all file system locations used by Trellis Studio.
 ///
-/// Locations tracked:
-/// 1. Application Support backend  — venv, cloned repos, scripts, generated outputs
-/// 2. HuggingFace model cache      — downloaded weights (~15 GB)
-/// 3. UserDefaults preferences     — app settings plist
-/// 4. SwiftData store              — generation history database
+/// Use `CleanupService` to calculate disk usage and safely remove cached data.
+/// It tracks the Python virtual environment, Hugging Face model weights,
+/// user preferences, and SwiftData generation history.
 final class CleanupService {
     static let shared = CleanupService()
     private init() {}
@@ -44,7 +42,10 @@ final class CleanupService {
     
     // MARK: - Size Helpers
     
-    /// Returns the size of a directory in bytes, or 0 if it doesn't exist.
+    /// Calculates the total size of a directory.
+    ///
+    /// - Parameter url: The file URL of the directory to measure.
+    /// - Returns: The total size in bytes, or `0` if the directory does not exist.
     func sizeOfDirectory(at url: URL) -> Int64 {
         let fm = FileManager.default
         guard fm.fileExists(atPath: url.path) else { return 0 }
@@ -60,7 +61,10 @@ final class CleanupService {
         return total
     }
     
-    /// Returns a human-readable size string (e.g. "14.3 GB").
+    /// Formats a byte count into a human-readable storage string.
+    ///
+    /// - Parameter bytes: The number of bytes to format.
+    /// - Returns: A localized string (e.g., `"14.3 GB"`).
     func formattedSize(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()
         formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
@@ -70,20 +74,26 @@ final class CleanupService {
     
     // MARK: - Individual Cleanup Actions
     
-    /// Remove the backend environment (venv, cloned repos, scripts).
+    /// Removes the Python backend environment, including the virtual environment and cloned repositories.
+    ///
+    /// - Throws: An error if the files cannot be removed.
     func removeBackend() throws {
         try removeIfExists(backendURL)
     }
     
-    /// Remove all generated model outputs.
+    /// Removes all generated 3D models and their associated thumbnails.
+    ///
+    /// - Throws: An error if the files cannot be removed.
     func removeGenerations() throws {
         try removeIfExists(generationsURL)
     }
     
-    /// Remove cached HuggingFace model weights.
+    /// Removes cached Hugging Face model weights that were downloaded by the application.
     ///
-    /// Only removes Trellis-related model folders to avoid
-    /// nuking weights used by other apps on the system.
+    /// This method only removes models specific to the Trellis pipeline to avoid deleting
+    /// weights that might be used by other applications on the system.
+    ///
+    /// - Throws: An error if the cache directories cannot be removed.
     func removeTrellisModelCache() throws {
         let fm = FileManager.default
         guard fm.fileExists(atPath: huggingFaceCacheURL.path) else { return }
@@ -133,7 +143,14 @@ final class CleanupService {
         }
     }
     
-    /// Nuclear option: remove everything the app ever wrote.
+    /// Removes the application's entire footprint from the disk.
+    ///
+    /// This operation deletes the backend environment, all generated content, downloaded
+    /// model weights, the internal database, and all user preferences.
+    ///
+    /// > Warning: This operation permanently deletes all local application data and cannot be undone.
+    ///
+    /// - Throws: An error if any of the targeted directories or files cannot be removed.
     func removeEverything() throws {
         try removeBackend()
         try removeGenerations()

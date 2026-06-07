@@ -1,6 +1,10 @@
 import SwiftUI
 
 /// Shows live generation progress during an active generation.
+///
+/// Use `GenerationProgressView` to display the current stage of the 3D pipeline (e.g.,
+/// loading pipeline, sampling texture, extracting mesh). It also displays the final
+/// geometry statistics or any errors that occurred.
 struct GenerationProgressView: View {
     @EnvironmentObject private var generation: GenerationService
     var record: GenerationRecord

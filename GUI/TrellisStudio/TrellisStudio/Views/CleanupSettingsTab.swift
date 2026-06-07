@@ -2,6 +2,9 @@ import SwiftUI
 
 /// Settings tab that shows disk usage for every location the app writes to
 /// and lets users selectively or fully remove them.
+///
+/// Use `CleanupSettingsTab` to manage the storage footprint of the application,
+/// including the Python backend, generated 3D models, and the HuggingFace cache.
 struct CleanupSettingsTab: View {
     private let cleanup = CleanupService.shared
     

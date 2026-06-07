@@ -1,6 +1,9 @@
 import SwiftUI
 
 /// Settings tab that shows all required models, their download status, sizes, and actions.
+///
+/// Use `ModelManagementTab` to view the HuggingFace model cache, download missing weights,
+/// and check the authorization status of gated repositories required by the pipeline.
 struct ModelManagementTab: View {
     @ObservedObject private var catalog = ModelCatalogService.shared
     @ObservedObject private var auth = HFAuthService.shared

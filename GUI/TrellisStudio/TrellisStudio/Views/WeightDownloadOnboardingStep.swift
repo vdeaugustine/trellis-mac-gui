@@ -1,6 +1,9 @@
 import SwiftUI
 
 /// Onboarding step that pre-downloads all TRELLIS.2 model weights.
+///
+/// Use `WeightDownloadOnboardingStep` to execute the Python weight download script
+/// and display its progress and log output to the user.
 struct WeightDownloadOnboardingStep: View {
     @Binding var downloadStatus: InstallStatus
     @Binding var downloadLogs: [InstallLogEntry]

@@ -1,7 +1,9 @@
 import Foundation
 
 /// Centralized accessibility identifiers for UI testing.
-/// Keeps all IDs in one place to avoid typos and enable autocomplete.
+///
+/// Use `AccessibilityID` to assign stable, hardcoded identifiers to user interface elements.
+/// Keeping all IDs in one place helps avoid typos and enables autocomplete during UI testing.
 enum AccessibilityID {
     // MARK: - Content View
     static let daemonStatusDot = "daemon-status-dot"

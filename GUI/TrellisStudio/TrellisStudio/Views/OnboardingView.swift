@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// A multi-step flow that guides the user through the initial application setup.
+///
+/// `OnboardingView` handles disk space verification, Python backend installation,
+/// HuggingFace authentication, and the initial download of model weights.
 struct OnboardingView: View {
     @ObservedObject var onboarding = OnboardingService.shared
     @ObservedObject var settings = SettingsService.shared

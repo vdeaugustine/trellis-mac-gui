@@ -1,6 +1,6 @@
 import Foundation
 
-/// Status of access to a specific gated HuggingFace model repository.
+/// The access status of a specific gated Hugging Face model repository.
 enum GatedModelStatus: Equatable {
     case unknown
     case checking
@@ -9,7 +9,10 @@ enum GatedModelStatus: Equatable {
     case error(String)
 }
 
-/// Represents a gated model that requires explicit access approval.
+/// A representation of a gated Hugging Face model that requires explicit access approval.
+///
+/// Use `GatedModelInfo` to track and display the user's access rights to required models
+/// during the onboarding process.
 struct GatedModelInfo: Identifiable {
     let id: String
     let repoId: String
@@ -18,11 +21,14 @@ struct GatedModelInfo: Identifiable {
     var status: GatedModelStatus = .unknown
 }
 
-/// HuggingFace authentication and access management.
+/// A service that manages Hugging Face authentication and gated repository access.
+///
+/// Use `HFAuthService` to validate user tokens, verify access to required machine learning
+/// models, and persist authentication state for the Python backend.
 final class HFAuthService: ObservableObject {
     static let shared = HFAuthService()
 
-    /// Username from whoami API after validation.
+    /// The authenticated username retrieved from the Hugging Face API.
     @Published var username: String = ""
 
     /// Whether the current token has been validated.
@@ -54,7 +60,12 @@ final class HFAuthService: ObservableObject {
 
     private init() {}
 
-    /// Returns the best available token: SettingsService → HF cache file.
+    /// Retrieves the most appropriate Hugging Face token currently available.
+    ///
+    /// This method first checks the application's secure settings. If no token is configured,
+    /// it attempts to locate an existing token managed by the Hugging Face CLI.
+    ///
+    /// - Returns: A valid token string, or an empty string if no token is found.
     func resolveToken() -> String {
         let guiToken = SettingsService.shared.hfToken
         if !guiToken.isEmpty { return guiToken }
@@ -63,7 +74,11 @@ final class HFAuthService: ObservableObject {
 
     // MARK: - Token Detection
 
-    /// Checks `~/.cache/huggingface/token` for an existing token from CLI login.
+    // MARK: - Token Detection
+
+    /// Checks the user's local directory for an existing Hugging Face CLI token.
+    ///
+    /// - Returns: The token string if found and readable; otherwise, `nil`.
     func detectExistingToken() -> String? {
         guard FileManager.default.fileExists(atPath: hfCacheTokenPath),
               let contents = try? String(contentsOfFile: hfCacheTokenPath, encoding: .utf8) else {
@@ -75,8 +90,12 @@ final class HFAuthService: ObservableObject {
 
     // MARK: - Token Validation
 
-    /// Validates a token against the HuggingFace whoami API.
-    /// Returns the username on success, nil on failure.
+    // MARK: - Token Validation
+
+    /// Validates a token against the Hugging Face authentication API.
+    ///
+    /// - Parameter token: The authentication token to validate.
+    /// - Returns: The authenticated username if the token is valid; otherwise, `nil`.
     func validateToken(_ token: String) async -> String? {
         guard !token.isEmpty else { return nil }
 
@@ -99,7 +118,11 @@ final class HFAuthService: ObservableObject {
         }
     }
 
-    /// Full validation flow: validates token, updates published state.
+    /// Validates the specified token and updates the service's published state.
+    ///
+    /// Call this method to verify a user-provided token during the onboarding flow.
+    ///
+    /// - Parameter token: The authentication token to validate.
     @MainActor
     func performValidation(token: String) async {
         isValidating = true

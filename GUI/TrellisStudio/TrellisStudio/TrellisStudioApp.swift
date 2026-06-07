@@ -1,6 +1,11 @@
 import SwiftUI
 import SwiftData
 
+/// The main entry point for the Trellis Studio application.
+///
+/// `TrellisStudioApp` initializes the application's core services, manages the global
+/// window group, and coordinates the display of the onboarding flow versus the main
+/// workspace depending on the user's installation state.
 @main
 struct TrellisStudioApp: App {
     @StateObject private var onboardingService = OnboardingService.shared

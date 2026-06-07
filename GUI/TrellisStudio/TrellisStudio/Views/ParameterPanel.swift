@@ -1,5 +1,10 @@
 import SwiftUI
 
+/// A control panel for configuring 3D generation parameters.
+///
+/// Use `ParameterPanel` to allow users to customize the pipeline settings, such as the
+/// random seed, model type, and texture resolution. It also provides quick presets and
+/// the main button to initiate generation.
 struct ParameterPanel: View {
     @Bindable var parameters: GenerationParameters
     @Binding var inputImageURL: URL?

@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// A navigation sidebar that displays a history of generated models and controls for starting new tasks.
+///
+/// Use `SidebarView` to let users browse their past 3D generation records or initiate new
+/// generation workflows.
 struct SidebarView: View {
     @Binding var selectedItem: String?
     @State private var searchText = ""
@@ -68,6 +72,7 @@ struct SidebarView: View {
     }
 }
 
+/// A single row within the history sidebar representing a past generation.
 struct HistoryRowView: View {
     var title: String
     var status: GenerationStatusMock

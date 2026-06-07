@@ -2,25 +2,48 @@ import Foundation
 import SwiftData
 
 /// Live progress details for the active daemon stage.
+///
+/// Use `GenerationStageProgress` to calculate and display progress bars and descriptive text
+/// while a generation task is running.
 struct GenerationStageProgress {
+    /// The current execution state of the pipeline.
     let stage: GenerationStatus
+    
+    /// The number of completed steps in the current stage.
     let current: Int
+    
+    /// The total number of steps in the current stage.
     let total: Int
+    
+    /// A localized description of the current stage's progress.
     let message: String
 
+    /// The normalized progress fraction, from `0.0` to `1.0`.
     var fraction: Double {
         guard total > 0 else { return 0 }
         return min(1, max(0, Double(current) / Double(total)))
     }
 }
 
+/// A background service that manages the queue and execution of 3D generation tasks.
+///
+/// Use `GenerationService` to submit new generation records, monitor active generation
+/// progress, and safely serialize requests to the backend daemon. The service guarantees
+/// that only one generation task runs at a time.
 @MainActor
 final class GenerationService: ObservableObject {
     static let shared = GenerationService()
 
+    /// The generation record currently being processed by the backend.
     @Published var activeRecord: GenerationRecord?
+    
+    /// The most recently completed generation record.
     @Published var lastCompletedRecord: GenerationRecord?
+    
+    /// The queue of pending generation records waiting to be processed.
     @Published var queue: [GenerationRecord] = []
+    
+    /// The live progress of the active generation task.
     @Published var stageProgress: GenerationStageProgress?
 
     private var isProcessing = false
@@ -28,6 +51,11 @@ final class GenerationService: ObservableObject {
 
     private init() {}
 
+    /// Adds a generation record to the processing queue.
+    ///
+    /// - Parameters:
+    ///   - record: The generation record to enqueue.
+    ///   - modelContext: The SwiftData context used to persist the record.
     func addToQueue(record: GenerationRecord, modelContext: ModelContext) {
         log.info("Adding generation to queue: \(record.id)", context: "Generation")
         queue.append(record)
@@ -43,6 +71,7 @@ final class GenerationService: ObservableObject {
         processNext()
     }
 
+    /// Advances the queue and starts processing the next generation record if the service is idle.
     func processNext() {
         guard !isProcessing, !queue.isEmpty else {
             if isProcessing {
@@ -238,11 +267,18 @@ final class GenerationService: ObservableObject {
 
 // MARK: - Error Types
 
+/// Errors that can occur when preparing or starting a generation task.
 enum GenerationError: Error {
+    /// The source image file could not be found at the specified path.
     case inputNotFound(String)
+    
+    /// The Python backend is not fully loaded and ready to accept requests.
     case daemonNotReady
+    
+    /// The service could not create a dedicated output directory for the generation results.
     case outputDirectoryFailed(String)
 
+    /// A localized, human-readable description of the error.
     var userMessage: String {
         switch self {
         case .inputNotFound(let path):

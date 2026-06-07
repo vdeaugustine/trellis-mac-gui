@@ -1,6 +1,9 @@
 import SwiftUI
 
 /// Step 4 of onboarding — HuggingFace authentication and gated model access.
+///
+/// Use `HuggingFaceOnboardingStep` to prompt the user for their HuggingFace access token,
+/// validate it, and verify that they have accepted the licenses for required gated models.
 struct HuggingFaceOnboardingStep: View {
     @ObservedObject var hfAuth = HFAuthService.shared
     @Binding var hfToken: String

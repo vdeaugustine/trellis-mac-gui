@@ -1,6 +1,6 @@
 import Foundation
 
-/// Status of a single model checkpoint in the HuggingFace cache.
+/// The download status of a model checkpoint in the local cache.
 enum ModelDownloadStatus: Equatable {
     case downloaded
     case missing
@@ -8,7 +8,10 @@ enum ModelDownloadStatus: Equatable {
     case error(String)
 }
 
-/// Current download operation details for settings UI.
+/// The progress details of a model download operation.
+///
+/// Use `ModelCatalogDownloadProgress` to display the current state of a long-running
+/// model download to the user in the settings interface.
 struct ModelCatalogDownloadProgress {
     var currentModelID: String = ""
     var currentModelName: String = "Preparing download"
@@ -18,7 +21,10 @@ struct ModelCatalogDownloadProgress {
     var message: String = ""
 }
 
-/// Represents one model checkpoint that the pipeline requires.
+/// A representation of a required machine learning model checkpoint.
+///
+/// Use `ModelCatalogEntry` to track whether a specific component of the generation
+/// pipeline has been downloaded and is available for execution.
 struct ModelCatalogEntry: Identifiable {
     let id: String
     let displayName: String
@@ -36,7 +42,11 @@ struct ModelCatalogEntry: Identifiable {
     var sizeBytes: Int64 = 0
 }
 
-/// Scans the HuggingFace cache to determine which TRELLIS models are downloaded.
+/// A service that monitors and manages downloaded machine learning models.
+///
+/// Use `ModelCatalogService` to verify the presence of required Hugging Face models,
+/// download missing weights, and delete cached checkpoints. The service scans the
+/// local cache to ensure all dependencies are met before generation can occur.
 final class ModelCatalogService: ObservableObject {
     static let shared = ModelCatalogService()
 
@@ -136,7 +146,10 @@ final class ModelCatalogService: ObservableObject {
 
     // MARK: - Scanning
 
-    /// Scans the HF cache and updates each entry's status and size.
+    /// Scans the local Hugging Face cache to determine the availability and size of all required models.
+    ///
+    /// This method runs asynchronously in the background and updates the service's published
+    /// properties when the scan completes.
     func scan() {
         guard !isScanning, !isDownloading else { return }
         isScanning = true
@@ -245,7 +258,10 @@ final class ModelCatalogService: ObservableObject {
 
     // MARK: - Actions
 
-    /// Deletes a single model's cache directory.
+    /// Deletes a specific model from the local cache.
+    ///
+    /// - Parameter entry: The catalog entry representing the model to delete.
+    /// - Throws: An error if the cache directory cannot be removed.
     func deleteModel(_ entry: ModelCatalogEntry) throws {
         let repoDirName = "models--\(entry.repoId.replacingOccurrences(of: "/", with: "--"))"
         let repoDir = hfCacheRoot.appendingPathComponent(repoDirName)
@@ -256,7 +272,10 @@ final class ModelCatalogService: ObservableObject {
         scan()
     }
 
-    /// Downloads all required model weights with progress updates.
+    /// Initiates a background process to download all missing model weights.
+    ///
+    /// This method invokes the `download_weights.py` script via the Python backend
+    /// and streams the progress back to the user interface.
     @MainActor
     func downloadAllWeights() {
         guard !isDownloading else { return }

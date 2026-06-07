@@ -1,17 +1,29 @@
 import Foundation
 
 /// Manages a TCP connection to the daemon process.
-/// Handles connecting, sending JSON commands, and receiving JSON responses.
+///
+/// Use `DaemonTCPConnection` to establish a persistent connection with the Python backend.
+/// It provides methods for connecting, sending JSON payloads, and parsing incoming JSON
+/// responses asynchronously.
 final class DaemonTCPConnection {
     private var inputStream: InputStream?
     private var outputStream: OutputStream?
     private var readThread: Thread?
     private var readBuffer = Data()
+    private let connectQueue = DispatchQueue(
+        label: "com.vinware.trellis-studio.daemon-tcp-connect",
+        qos: .userInitiated
+    )
 
     private let log = AppLogger.shared
+    
+    /// A closure that is called whenever a complete JSON response is received.
     var onResponse: (([String: Any]) -> Void)?
+    
+    /// A closure that is called when the TCP connection disconnects or fails.
     var onDisconnect: (() -> Void)?
 
+    /// A Boolean value that indicates whether the TCP connection is currently open.
     var isConnected: Bool {
         guard let input = inputStream, let output = outputStream else {
             return false
@@ -21,7 +33,21 @@ final class DaemonTCPConnection {
 
     // MARK: - Connect
 
-    func connect(port: Int) -> Bool {
+    /// Establishes a TCP connection to the specified localhost port.
+    ///
+    /// - Parameter port: The port number to connect to.
+    /// - Parameter completion: A closure that receives whether the streams opened successfully.
+    func connect(port: Int, completion: @escaping (Bool) -> Void) {
+        connectQueue.async { [weak self] in
+            guard let self else { return }
+            let connected = self.openConnection(port: port)
+            DispatchQueue.main.async {
+                completion(connected)
+            }
+        }
+    }
+
+    private func openConnection(port: Int) -> Bool {
         var readStream: Unmanaged<CFReadStream>?
         var writeStream: Unmanaged<CFWriteStream>?
 
@@ -60,6 +86,9 @@ final class DaemonTCPConnection {
 
     // MARK: - Send
 
+    /// Encodes a dictionary as JSON and writes it to the TCP output stream.
+    ///
+    /// - Parameter command: The dictionary to encode and send.
     func send(command: [String: Any]) {
         guard let output = outputStream, output.streamStatus == .open else {
             log.error("Cannot send — TCP not connected", context: "Daemon")
@@ -153,6 +182,7 @@ final class DaemonTCPConnection {
 
     // MARK: - Disconnect
 
+    /// Closes the connection streams and stops the reading thread.
     func disconnect() {
         inputStream?.close()
         outputStream?.close()

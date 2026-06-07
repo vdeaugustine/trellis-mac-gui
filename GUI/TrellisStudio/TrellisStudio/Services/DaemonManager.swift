@@ -1,6 +1,9 @@
 import Foundation
 
 /// Classifies daemon errors so the UI can show actionable recovery.
+///
+/// Use `DaemonErrorKind` to determine if a daemon failure requires specific user intervention,
+/// such as logging into Hugging Face or accepting a model repository's access agreement.
 enum DaemonErrorKind: Equatable {
     case none
     case gatedAccess(repo: String)
@@ -8,6 +11,11 @@ enum DaemonErrorKind: Equatable {
     case generic
 }
 
+/// Manages the lifecycle and state of the Python background daemon.
+///
+/// Use `DaemonManager` to start the backend, monitor its health, and dispatch generation
+/// requests. The manager maintains a TCP connection to the daemon and parses stdout/stderr
+/// for error recovery and pipeline loading progress.
 final class DaemonManager: ObservableObject {
     static let shared = DaemonManager()
 
@@ -21,16 +29,31 @@ final class DaemonManager: ObservableObject {
     private var tcpConnection = DaemonTCPConnection()
     private var healthCheckTimer: Timer?
 
+    /// A Boolean value that indicates whether the daemon is fully ready to accept generation requests.
     @Published var isReady = false
+    
+    /// A Boolean value that indicates whether the daemon is currently starting up or loading its pipeline.
     @Published var isWarmingUp = false
+    
+    /// A Boolean value that indicates whether the daemon process is stopped or disconnected.
     @Published var isOffline = true
+    
+    /// A Boolean value that indicates whether the machine learning pipeline is loaded into GPU memory.
     @Published var isPipelineLoaded = false
+    
+    /// The current progress of the pipeline loading phase, if applicable.
     @Published var pipelineLoadProgress: DaemonPipelineLoadProgress?
+    
+    /// The most recent error message reported by the daemon.
     @Published var lastDaemonError: String?
+    
+    /// The classification of the most recent error.
     @Published var errorKind: DaemonErrorKind = .none
-    /// User-facing status message during daemon startup/connection.
+    
+    /// A user-facing status message used during daemon startup and connection phases.
     @Published var connectionStatus: String?
 
+    /// A Boolean value that indicates whether the daemon is running in dry-run mode.
     var isDryRun = false
 
     private var progressCallbacks: [([String: Any]) -> Void] = []
@@ -49,20 +72,33 @@ final class DaemonManager: ObservableObject {
 
     // MARK: - Lifecycle
 
+    /// Starts the background Python daemon using the specified installation path.
+    ///
+    /// If an existing daemon is found and responsive, the manager will reconnect to it instead
+    /// of launching a new process.
+    ///
+    /// - Parameters:
+    ///   - trellisPath: The file path to the Trellis Python environment.
+    ///   - dryRun: A Boolean value that indicates whether the daemon should skip actual GPU processing.
     func startDaemon(trellisPath: String, dryRun: Bool = false) {
         self.isDryRun = dryRun
 
-        // Step 1: Try reconnecting to an existing daemon (before reset)
-        if tryReconnectToExistingDaemon() {
-            log.success("Reconnected to existing daemon — skipping pipeline reload", context: "Daemon")
-            return
-        }
+        tryReconnectToExistingDaemon { [weak self] reconnected in
+            guard let self else { return }
+            if reconnected {
+                self.log.success("Reconnected to existing daemon — skipping pipeline reload", context: "Daemon")
+                return
+            }
 
-        // Step 2: No existing daemon — reset state and launch new one
-        resetState()
-        launchNewDaemon(trellisPath: trellisPath, dryRun: dryRun)
+            self.resetState()
+            self.launchNewDaemon(trellisPath: trellisPath, dryRun: dryRun)
+        }
     }
 
+    /// Shuts down the daemon gracefully.
+    ///
+    /// This method sends a shutdown request over the TCP connection and forcefully terminates
+    /// the process if it does not exit within the timeout period.
     func stopDaemon() {
         log.info("Shutting down daemon", context: "Daemon")
         healthCheckTimer?.invalidate()
@@ -82,23 +118,28 @@ final class DaemonManager: ObservableObject {
 
     // MARK: - Reconnect to Existing Daemon
 
-    private func tryReconnectToExistingDaemon() -> Bool {
+    private func tryReconnectToExistingDaemon(completion: @escaping (Bool) -> Void) {
         guard let port = readDaemonPort(),
               let pid = readDaemonPID(),
               isProcessAlive(pid: pid) else {
-            return false
+            completion(false)
+            return
         }
 
         log.info("Found existing daemon (PID: \(pid), port: \(port)) — reconnecting…", context: "Daemon")
 
-        if tcpConnection.connect(port: port) {
-            wireUpTCPCallbacks()
-            startHealthCheck()
-            return true
-        }
+        tcpConnection.connect(port: port) { [weak self] connected in
+            guard let self else { return }
+            if connected {
+                self.wireUpTCPCallbacks()
+                self.startHealthCheck()
+                completion(true)
+                return
+            }
 
-        log.warning("TCP connect failed to existing daemon — will launch new one", context: "Daemon")
-        return false
+            self.log.warning("TCP connect failed to existing daemon — will launch new one", context: "Daemon")
+            completion(false)
+        }
     }
 
     private func readDaemonPort() -> Int? {
@@ -198,17 +239,26 @@ final class DaemonManager: ObservableObject {
             if let port = readDaemonPort() {
                 connectionStatus = "Connecting to backend on port \(port)…"
                 log.info("Port file found: \(port). Connecting…", context: "Daemon")
-                if tcpConnection.connect(port: port) {
-                    log.success("TCP connected to new daemon on port \(port)", context: "Daemon")
-                    connectionStatus = nil
-                    wireUpTCPCallbacks()
-                    startHealthCheck()
-                    return
-                } else {
-                    log.warning("TCP connect to port \(port) failed, retrying…", context: "Daemon")
+                tcpConnection.connect(port: port) { [weak self] connected in
+                    guard let self else { return }
+                    if connected {
+                        self.log.success("TCP connected to new daemon on port \(port)", context: "Daemon")
+                        self.connectionStatus = nil
+                        self.wireUpTCPCallbacks()
+                        self.startHealthCheck()
+                        return
+                    }
+
+                    self.log.warning("TCP connect to port \(port) failed, retrying…", context: "Daemon")
+                    scheduleNextCheck()
                 }
+                return
             }
 
+            scheduleNextCheck()
+        }
+
+        func scheduleNextCheck() {
             if attempts < maxAttempts {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                     checkPortFile()
@@ -283,6 +333,9 @@ final class DaemonManager: ObservableObject {
 
     // MARK: - Request Sending
 
+    /// Sends a JSON command to the daemon over the active TCP connection.
+    ///
+    /// - Parameter command: A dictionary representing the command payload.
     func sendRequest(command: [String: Any]) {
         if tcpConnection.isConnected {
             tcpConnection.send(command: command)
@@ -293,18 +346,26 @@ final class DaemonManager: ObservableObject {
 
     // MARK: - Callbacks
 
+    /// Registers a closure to be called when the daemon sends a progress update.
+    ///
+    /// - Parameter callback: A closure that receives the raw JSON response payload.
     func registerCallback(_ callback: @escaping ([String: Any]) -> Void) {
         progressCallbacks.append(callback)
     }
 
+    /// Removes all registered progress callbacks.
     func clearCallbacks() {
         progressCallbacks.removeAll()
     }
 
+    /// Registers a closure to be called when the daemon process crashes unexpectedly.
+    ///
+    /// - Parameter callback: A closure that receives the crash error message.
     func registerCrashCallback(_ callback: @escaping (String) -> Void) {
         crashCallbacks.append(callback)
     }
 
+    /// Removes all registered crash callbacks.
     func clearCrashCallbacks() {
         crashCallbacks.removeAll()
     }
@@ -346,7 +407,11 @@ final class DaemonManager: ObservableObject {
                 if let port = self.readDaemonPort(),
                    let pid = self.readDaemonPID(),
                    self.isProcessAlive(pid: pid) {
-                    _ = self.tcpConnection.connect(port: port)
+                    self.tcpConnection.connect(port: port) { [weak self] connected in
+                        if connected {
+                            self?.wireUpTCPCallbacks()
+                        }
+                    }
                 } else {
                     self.log.error("Health check: daemon is gone", context: "Daemon")
                     self.healthCheckTimer?.invalidate()

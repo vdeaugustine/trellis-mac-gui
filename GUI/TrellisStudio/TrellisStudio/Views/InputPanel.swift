@@ -1,6 +1,10 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// A view that accepts image files via drag-and-drop or a file picker.
+///
+/// Use `InputPanel` to let users provide the initial 2D image for the 3D generation pipeline.
+/// It displays a preview of the selected image and provides an option to remove it.
 struct InputPanel: View {
     @Binding var inputImageURL: URL?
     @State private var isHovering = false

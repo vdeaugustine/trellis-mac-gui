@@ -1,6 +1,10 @@
 import SwiftUI
 
+/// A centralized collection of colors, spacing, and styling constants.
+///
+/// Use `Theme` to maintain visual consistency across the application.
 struct Theme {
+    /// The primary dark background color.
     static let background = Color(hex: 0x0F1117)
     static let slateGray = Color(hex: 0x8B8FA3)
     static let accentIndigo = Color(hex: 0x5D5CDE)
@@ -17,6 +21,7 @@ struct Theme {
     static let warningAmber = Color(hex: 0xF39C12)
     static let errorRed = Color(hex: 0xE74C3C)
     
+    /// Predefined spacing constants for layout padding and margins.
     struct Spacing {
         static let xs: CGFloat = 4
         static let sm: CGFloat = 8
@@ -26,12 +31,14 @@ struct Theme {
         static let xxl: CGFloat = 32
     }
     
+    /// Predefined corner radii for shapes and backgrounds.
     struct CornerRadius {
         static let button: CGFloat = 8
         static let card: CGFloat = 12
         static let panel: CGFloat = 20
     }
     
+    /// The primary gradient used to highlight active or branded UI elements.
     static var accentGradient: LinearGradient {
         LinearGradient(
             gradient: Gradient(colors: [accentIndigo, accentViolet]),
@@ -42,6 +49,11 @@ struct Theme {
 }
 
 extension Color {
+    /// Creates a color from a hexadecimal integer.
+    ///
+    /// - Parameters:
+    ///   - hex: The 24-bit hexadecimal integer representing the color (e.g., `0xFF0000` for red).
+    ///   - alpha: The opacity of the color, from `0.0` to `1.0`. Defaults to `1.0`.
     init(hex: UInt32, alpha: Double = 1.0) {
         let r = Double((hex >> 16) & 0xFF) / 255.0
         let g = Double((hex >> 8) & 0xFF) / 255.0

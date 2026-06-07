@@ -30,6 +30,10 @@ enum InstallStatus: Equatable {
     case failed(String)
 }
 
+/// A service that handles the initial application setup and environment installation.
+///
+/// Use `OnboardingService` to verify the user's disk space, install the Python backend,
+/// and ensure all required dependencies are available before the application launches.
 final class OnboardingService: ObservableObject {
     static let shared = OnboardingService()
     
@@ -43,6 +47,9 @@ final class OnboardingService: ObservableObject {
     
     // MARK: - Disk Space
     
+    /// Checks the available disk space on the startup volume.
+    ///
+    /// - Returns: The available space in gigabytes (GB).
     func checkDiskSpace() -> Double {
         let fileURL = URL(fileURLWithPath: "/")
         do {
@@ -58,6 +65,9 @@ final class OnboardingService: ObservableObject {
     
     // MARK: - Environment Check
     
+    /// Verifies that all required scripts and directories exist in the backend installation folder.
+    ///
+    /// - Returns: `true` if the environment is fully installed; otherwise, `false`.
     func checkEnvironmentInstalled() -> Bool {
         let fm = FileManager.default
         let base = backendDirectoryURL
@@ -115,7 +125,12 @@ final class OnboardingService: ObservableObject {
     
     // MARK: - Install Environment
     
-    /// Runs the full installation and yields structured log entries.
+    /// Runs the full Python backend installation and streams structured log entries.
+    ///
+    /// This method copies the bundled scripts to the user's Application Support directory
+    /// and executes the setup script to configure the Python environment.
+    ///
+    /// - Returns: An asynchronous stream of installation logs that can be displayed to the user.
     func installEnvironment() -> AsyncStream<InstallLogEntry> {
         AsyncStream { continuation in
             Task.detached { [self] in

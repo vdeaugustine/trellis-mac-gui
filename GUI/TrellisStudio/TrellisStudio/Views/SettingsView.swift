@@ -1,5 +1,10 @@
 import SwiftUI
 
+/// The main configuration window for Trellis Studio.
+///
+/// `SettingsView` organizes application preferences into tabs, including general setup,
+/// HuggingFace account authentication, model cache management, default generation
+/// parameters, appearance, and advanced environment overrides.
 struct SettingsView: View {
     @ObservedObject var settings = SettingsService.shared
     @ObservedObject var onboarding = OnboardingService.shared

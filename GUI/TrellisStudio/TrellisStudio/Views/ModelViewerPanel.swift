@@ -3,6 +3,9 @@ import SceneKit
 import UniformTypeIdentifiers
 
 /// Displays a 3D model from a completed generation, or a placeholder when none exists.
+///
+/// Use `ModelViewerPanel` to render generated GLB or OBJ files using SceneKit. It includes
+/// controls for adjusting lighting, toggling wireframe mode, and exporting the final model.
 struct ModelViewerPanel: View {
     var record: GenerationRecord?
 
@@ -218,7 +221,7 @@ struct ModelViewerPanel: View {
 
 // MARK: - SceneKit View
 
-/// Wraps an SCNView for displaying a 3D scene with orbit controls.
+/// Wraps an `SCNView` for displaying a 3D scene with orbit controls in a SwiftUI hierarchy.
 struct SceneKitModelView: NSViewRepresentable {
     var scene: SCNScene
     var showWireframe: Bool
@@ -280,6 +283,10 @@ struct SceneKitModelView: NSViewRepresentable {
 
 // MARK: - Stat Item
 
+/// A small informational view displaying a label and a prominent value.
+///
+/// Use `StatItem` to show metrics such as vertex counts or generation times as an overlay
+/// on the 3D viewer.
 struct StatItem: View {
     var label: String
     var value: String

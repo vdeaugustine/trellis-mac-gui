@@ -1,16 +1,18 @@
 import Foundation
 import os.log
 
-/// Centralized logging for Trellis Studio.
-/// Writes to both Apple's unified logging system (visible in Console.app)
-/// and an in-memory buffer surfaced in the UI for user debugging.
+/// A centralized logging service for Trellis Studio.
+///
+/// Use `AppLogger` to record application events, warnings, and errors.
+/// This service writes logs to both Apple's unified logging system (visible in Console.app)
+/// and an in-memory buffer that is surfaced in the application's user interface.
 final class AppLogger: ObservableObject {
     static let shared = AppLogger()
 
-    /// In-memory log entries for UI display.
+    /// The list of recent in-memory log entries for UI display.
     @Published var entries: [LogEntry] = []
 
-    /// Most recent error message — shown as a banner in the UI.
+    /// The most recent error message, which is shown as a banner in the UI.
     @Published var lastError: String?
 
     /// Whether the error banner is visible.
@@ -23,14 +25,29 @@ final class AppLogger: ObservableObject {
 
     // MARK: - Public API
 
+    /// Logs an informational message.
+    ///
+    /// - Parameters:
+    ///   - message: The message to log.
+    ///   - context: The subsystem or component generating the log. Defaults to `"App"`.
     func info(_ message: String, context: String = "App") {
         log(.info, message, context: context)
     }
 
+    /// Logs a warning message.
+    ///
+    /// - Parameters:
+    ///   - message: The message to log.
+    ///   - context: The subsystem or component generating the log. Defaults to `"App"`.
     func warning(_ message: String, context: String = "App") {
         log(.warning, message, context: context)
     }
 
+    /// Logs an error message and displays it in the user interface as an error banner.
+    ///
+    /// - Parameters:
+    ///   - message: The error message to log.
+    ///   - context: The subsystem or component generating the log. Defaults to `"App"`.
     func error(_ message: String, context: String = "App") {
         log(.error, message, context: context)
         DispatchQueue.main.async {
@@ -39,6 +56,11 @@ final class AppLogger: ObservableObject {
         }
     }
 
+    /// Logs a success message.
+    ///
+    /// - Parameters:
+    ///   - message: The success message to log.
+    ///   - context: The subsystem or component generating the log. Defaults to `"App"`.
     func success(_ message: String, context: String = "App") {
         log(.success, message, context: context)
     }

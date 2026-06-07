@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// A view that manages a queue of images for batch 3D generation.
+///
+/// Use `BatchQueueView` to allow users to drop multiple images and process them
+/// sequentially using the pipeline.
 struct BatchQueueView: View {
     @State private var queue: [String] = []
     

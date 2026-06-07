@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// An alert sheet displayed when the macOS Metal GPU watchdog terminates the generation process.
+///
+/// Use `WatchdogErrorSheet` to explain why the generation failed and provide actionable
+/// workarounds (such as extending the timeout or disabling sparse convolutions).
 struct WatchdogErrorSheet: View {
     @Environment(\.dismiss) var dismiss
     

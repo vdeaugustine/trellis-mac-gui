@@ -1,10 +1,19 @@
 import Foundation
 
+/// Describes the progress of the machine learning pipeline loading phase.
+///
+/// Use `DaemonPipelineLoadProgress` to display structured loading updates to the user.
 struct DaemonPipelineLoadProgress: Equatable {
+    /// A short description of the current loading step.
     let message: String
+    
+    /// The number of completed steps.
     let current: Int
+    
+    /// The total number of steps in the loading process.
     let total: Int
 
+    /// A formatted, human-readable status text representing the loading progress.
     var statusText: String {
         let cleanMessage = message.isEmpty ? "Preparing pipeline" : message
         guard total > 0 else {
@@ -16,7 +25,14 @@ struct DaemonPipelineLoadProgress: Equatable {
     }
 }
 
+/// Provides environment variables necessary for launching the Python daemon.
 struct DaemonRuntimeEnvironment {
+    /// Creates the standard environment variable dictionary required by the PyTorch and MPS backends.
+    ///
+    /// - Parameters:
+    ///   - settings: The settings service used to retrieve configuration, such as the Hugging Face token.
+    ///   - logger: The logger used to record validation warnings.
+    /// - Returns: A dictionary of environment variables ready for `Process.environment`.
     static func make(settings: SettingsService = .shared, logger: AppLogger = .shared) -> [String: String] {
         var env = ProcessInfo.processInfo.environment
         env["PYTHONUNBUFFERED"] = "1"
@@ -62,6 +78,9 @@ struct DaemonRuntimeEnvironment {
     }
 }
 
+/// A buffer that retains the most recent stderr output from the daemon process.
+///
+/// Use `DaemonStderrTail` to provide contextual error messages when the daemon crashes unexpectedly.
 struct DaemonStderrTail {
     private var lines: [String] = []
 
@@ -76,6 +95,7 @@ struct DaemonStderrTail {
         }
     }
 
+    /// Constructs a crash message combining the fallback text with the recent stderr tail.
     func crashMessage(fallback: String) -> String {
         guard !lines.isEmpty else { return fallback }
         let tail = lines.suffix(4).joined(separator: " | ")

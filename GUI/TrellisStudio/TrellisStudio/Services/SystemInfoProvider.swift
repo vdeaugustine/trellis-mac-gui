@@ -1,8 +1,11 @@
 import Foundation
 
-/// Reads real system hardware info for display in Settings.
+/// A utility that reads hardware and operating system information.
+///
+/// Use `SystemInfoProvider` to retrieve system specifications, such as the active Apple Silicon chip
+/// and available unified memory, for display in the application settings or logs.
 struct SystemInfoProvider {
-    /// Chip name (e.g. "Apple M4 Max").
+    /// The localized name of the active processor (e.g., `"Apple M4 Max"`).
     static var chipName: String {
         var size: size_t = 0
         sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0)

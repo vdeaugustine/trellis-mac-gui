@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// The root view of the application workspace.
+///
+/// `ContentView` provides a split-view layout containing the historical generation sidebar
+/// and the primary interactive workspace.
 struct ContentView: View {
     @State private var selectedItem: String?
 
@@ -13,6 +17,11 @@ struct ContentView: View {
     }
 }
 
+/// The primary interactive area where users configure and monitor 3D generations.
+///
+/// `MainWorkspaceView` coordinates the input panel, parameter selection, error reporting,
+/// and the 3D model viewer. It orchestrates the overall generation flow by interacting
+/// with the `GenerationService` and `DaemonManager`.
 struct MainWorkspaceView: View {
     @EnvironmentObject var daemon: DaemonManager
     @EnvironmentObject var generation: GenerationService
