@@ -4,6 +4,7 @@ import os
 import time
 
 from daemon_memory import (
+    aggressive_mps_cleanup,
     is_mps_oom,
     mps_oom_message,
     release_pipeline_memory,
@@ -67,6 +68,8 @@ def handle_generate(cmd_payload, pipeline, args):
     pipeline.decode_tex_slat = hooked_decode_tex
 
     try:
+        # Purge leftover tensors from previous generation before loading
+        aggressive_mps_cleanup(get_torch())
         prepare_pipeline_for_type(pipeline, pipeline_type)
         t0 = time.time()
         sampler_overrides = {"steps": steps} if steps else {}
@@ -134,11 +137,8 @@ def handle_generate(cmd_payload, pipeline, args):
     finally:
         pipeline.decode_shape_slat = orig_decode_shape
         pipeline.decode_tex_slat = orig_decode_tex
-        outputs = None
-        mesh_out = None
-        verts = None
-        faces = None
-        img = None
+        del outputs, mesh_out, verts, faces, img
+        aggressive_mps_cleanup(get_torch())
         release_pipeline_memory(pipeline, get_torch())
 
 

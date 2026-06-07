@@ -6,6 +6,7 @@ import sys
 import time
 
 from daemon_memory import (
+    aggressive_mps_cleanup,
     install_mps_cpu_cleanup_hook,
     prune_pipeline_models,
     release_pipeline_memory,
@@ -97,6 +98,7 @@ def prepare_pipeline_for_type(pipeline, pipeline_type):
     needed = _models_for_pipeline_type(pipeline_type)
     removed = prune_pipeline_models(pipeline, needed, torch)
     if removed:
+        aggressive_mps_cleanup(torch)
         sys.stderr.write(
             f"[daemon] Unloaded unused models for {pipeline_type}: {removed}\n"
         )
@@ -107,7 +109,7 @@ def prepare_pipeline_for_type(pipeline, pipeline_type):
             "message": f"Unloaded {len(removed)} unused model(s)",
         })
     _ensure_models_loaded(pipeline, pipeline_type)
-    release_pipeline_memory(pipeline, torch)
+    aggressive_mps_cleanup(torch)
 
 
 def _import_torch_for_loading():

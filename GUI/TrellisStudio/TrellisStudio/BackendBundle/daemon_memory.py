@@ -76,6 +76,26 @@ def empty_mps_cache(torch=None):
         pass
 
 
+def aggressive_mps_cleanup(torch=None):
+    """Full cleanup cycle: gc twice, synchronize, empty cache.
+
+    Call between generations to ensure intermediate tensors (voxel grids,
+    sampling outputs, etc.) are freed before the next job starts.
+    """
+    if torch is None:
+        try:
+            torch = __import__("torch")
+        except Exception:
+            gc.collect()
+            gc.collect()
+            return
+    gc.collect()
+    gc.collect()
+    empty_mps_cache(torch)
+    gc.collect()
+    empty_mps_cache(torch)
+
+
 def synchronize_mps(torch):
     """Synchronize MPS work before long CPU or export phases."""
     if not _mps_available(torch):

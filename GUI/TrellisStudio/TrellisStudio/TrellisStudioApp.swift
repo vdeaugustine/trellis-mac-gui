@@ -87,7 +87,7 @@ struct TrellisStudioApp: App {
         let bundleCandidates: [URL] = [
             // 1. App bundle (production builds)
             Bundle.main.url(forResource: "BackendBundle", withExtension: nil),
-            // 2. Source tree: #filePath is TrellisStudioApp.swift in TrellisStudio/
+            // 2. Source tree: TrellisStudioApp.swift is in TrellisStudio/
             URL(fileURLWithPath: #filePath)
                 .deletingLastPathComponent() // TrellisStudio/
                 .appendingPathComponent("BackendBundle"),
@@ -96,14 +96,21 @@ struct TrellisStudioApp: App {
                 .deletingLastPathComponent()
                 .deletingLastPathComponent()
                 .appendingPathComponent("BackendBundle"),
+            // 4. Walk up from #filePath looking for BackendBundle
+            Self.findBackendBundleWalkingUp(from: #filePath),
         ].compactMap { $0 }
 
         guard let sourceDir = bundleCandidates.first(where: {
             fm.fileExists(atPath: $0.appendingPathComponent("trellis_daemon.py").path)
         }) else {
-            log.warning("Could not find BackendBundle daemon files. Tried: \(bundleCandidates.map(\.path))", context: "Daemon")
+            log.warning(
+                "Could not find BackendBundle daemon files. Tried: \(bundleCandidates.map(\.path))",
+                context: "Daemon"
+            )
             return false
         }
+
+        log.info("Syncing daemon files from: \(sourceDir.path)", context: "Daemon")
 
         let filenames = [
             "trellis_daemon.py",
@@ -124,18 +131,41 @@ struct TrellisStudioApp: App {
             }
             do {
                 if filesDiffer(source: source, dest: dest) {
+                    let sourceSize = (try? fm.attributesOfItem(atPath: source.path))?[.size] as? Int ?? 0
+                    let destSize = (try? fm.attributesOfItem(atPath: dest.path))?[.size] as? Int ?? 0
                     if fm.fileExists(atPath: dest.path) {
                         try fm.removeItem(at: dest)
                     }
                     try fm.copyItem(at: source, to: dest)
                     changed = true
-                    log.info("Synced daemon file: \(filename)", context: "Daemon")
+                    log.info(
+                        "Synced daemon file: \(filename) (\(destSize)B → \(sourceSize)B)",
+                        context: "Daemon"
+                    )
                 }
             } catch {
                 log.warning("Failed to sync \(filename): \(error.localizedDescription)", context: "Daemon")
             }
         }
         return changed
+    }
+
+    /// Walk up from a source file to find a BackendBundle directory.
+    private static func findBackendBundleWalkingUp(from filePath: String) -> URL? {
+        var dir = URL(fileURLWithPath: filePath).deletingLastPathComponent()
+        // Walk up at most 5 levels
+        for _ in 0..<5 {
+            let candidate = dir.appendingPathComponent("BackendBundle")
+            if FileManager.default.fileExists(
+                atPath: candidate.appendingPathComponent("trellis_daemon.py").path
+            ) {
+                return candidate
+            }
+            let parent = dir.deletingLastPathComponent()
+            if parent.path == dir.path { break }
+            dir = parent
+        }
+        return nil
     }
 
     private func filesDiffer(source: URL, dest: URL) -> Bool {
