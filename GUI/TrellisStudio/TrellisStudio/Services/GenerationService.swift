@@ -131,7 +131,7 @@ final class GenerationService: ObservableObject {
         │ Image:     \(URL(fileURLWithPath: record.inputImagePath).lastPathComponent)
         │ Seed:      \(record.seed)
         │ Pipeline:  \(record.pipelineType)
-        │ Texture:   \(record.textureSize)px
+        │ Texture:   \(record.noTexture ? "Geometry only" : "\(record.textureSize)px")
         │ Started:   \(dateFormatter.string(from: Date()))
         └───────────────────────────────────────────
         """, context: "Generation")
@@ -192,6 +192,7 @@ final class GenerationService: ObservableObject {
                 "seed": record.seed,
                 "pipeline_type": record.pipelineType,
                 "texture_size": record.textureSize,
+                "no_texture": record.noTexture,
                 "output_dir": generationDir.path
             ]
             log.info("Sending generate request to daemon", context: "Generation")

@@ -21,48 +21,62 @@ struct DaemonConsoleView: View {
             RoundedRectangle(cornerRadius: Theme.CornerRadius.button)
                 .stroke(Theme.border, lineWidth: 1)
         )
-        .padding(.horizontal, 24)
-        .padding(.bottom, 6)
     }
 
     // MARK: - Header
 
     private var consoleHeader: some View {
-        Button(action: { withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() } }) {
-            HStack(spacing: 6) {
-                Image(systemName: "terminal")
-                    .font(.caption2)
-                    .foregroundColor(Theme.slateGray)
+        HStack(spacing: 6) {
+            Button(action: { withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() } }) {
+                HStack(spacing: 6) {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption2)
+                        .foregroundColor(Theme.slateGray)
 
-                Text("Backend Console")
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(Theme.slateGray)
-
-                if !daemon.consoleOutput.isEmpty {
-                    Text("(\(daemon.consoleOutput.count) lines)")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundColor(Theme.slateGray.opacity(0.6))
+                    Text("Backend Console")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(Theme.slateGray)
                 }
-
-                Spacer()
-
-                // Pulse dot when new output is arriving
-                if !isExpanded && isReceivingOutput {
-                    Circle()
-                        .fill(Theme.successGreen)
-                        .frame(width: 6, height: 6)
-                        .opacity(pulseOpacity)
-                        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulseOpacity)
-                }
-
-                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                    .font(.caption2)
-                    .foregroundColor(Theme.slateGray)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .buttonStyle(.plain)
+
+            if !daemon.consoleOutput.isEmpty {
+                Text("(\(daemon.consoleOutput.count) lines)")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundColor(Theme.slateGray.opacity(0.6))
+            }
+
+            Spacer()
+
+            if daemon.isOffline && !daemon.isWarmingUp {
+                Button(action: restartDaemon) {
+                    Label("Restart", systemImage: "arrow.clockwise")
+                        .labelStyle(.titleAndIcon)
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(Theme.accentIndigo)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Theme.accentIndigo.opacity(0.14))
+                .cornerRadius(Theme.CornerRadius.button)
+                .accessibilityIdentifier(AccessibilityID.daemonRestartButton)
+            }
+
+            if !isExpanded && isReceivingOutput {
+                Circle()
+                    .fill(Theme.successGreen)
+                    .frame(width: 6, height: 6)
+                    .opacity(pulseOpacity)
+                    .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulseOpacity)
+            }
+
+            Image(systemName: "terminal")
+                .font(.caption2)
+                .foregroundColor(Theme.slateGray)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
     }
 
     // MARK: - Body
@@ -112,5 +126,11 @@ struct DaemonConsoleView: View {
             return Theme.successGreen.opacity(0.9)
         }
         return Color.white.opacity(0.6)
+    }
+
+    private func restartDaemon() {
+        let backendPath = OnboardingService.shared.backendDirectoryURL.path
+        AppLogger.shared.info("Restarting daemon…", context: "Daemon")
+        daemon.startDaemon(trellisPath: backendPath)
     }
 }

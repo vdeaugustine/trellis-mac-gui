@@ -15,7 +15,7 @@ struct ParameterPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Generation Parameters")
+            Text("Generation Settings")
                 .font(.headline)
 
             // Seed
@@ -51,11 +51,38 @@ struct ParameterPanel: View {
                 .pickerStyle(.segmented)
             }
 
-            // Texture Size
+            // Texture Output
             VStack(alignment: .leading, spacing: 8) {
-                Text("Texture Size")
+                Text("Texture Output")
                     .font(.subheadline)
                     .foregroundColor(Theme.slateGray)
+
+                Picker("", selection: textureModeBinding) {
+                    Text("Textured Model").tag(TextureMode.textured)
+                    Text("Geometry Only").tag(TextureMode.geometryOnly)
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier(AccessibilityID.noTextureToggle)
+
+                Text(textureModeHelp)
+                    .font(.caption)
+                    .foregroundColor(Theme.slateGray)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // Texture Size
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Texture Resolution")
+                        .font(.subheadline)
+                        .foregroundColor(Theme.slateGray)
+                    Spacer()
+                    if parameters.noTexture {
+                        Text("Off")
+                            .font(.caption)
+                            .foregroundColor(Theme.slateGray)
+                    }
+                }
                 Picker("", selection: $parameters.textureSize) {
                     Text("512").tag(512)
                     Text("1024").tag(1024)
@@ -63,11 +90,9 @@ struct ParameterPanel: View {
                 }
                 .pickerStyle(.segmented)
                 .disabled(parameters.noTexture)
+                .opacity(parameters.noTexture ? 0.45 : 1)
+                .accessibilityIdentifier(AccessibilityID.textureSizePicker)
             }
-
-            // No Texture
-            Toggle("No Texture", isOn: $parameters.noTexture)
-                .toggleStyle(.switch)
 
             Spacer()
 
@@ -122,10 +147,29 @@ struct ParameterPanel: View {
 
     // MARK: - Helpers
 
+    private enum TextureMode {
+        case textured
+        case geometryOnly
+    }
+
+    private var textureModeBinding: Binding<TextureMode> {
+        Binding(
+            get: { parameters.noTexture ? .geometryOnly : .textured },
+            set: { parameters.noTexture = ($0 == .geometryOnly) }
+        )
+    }
+
+    private var textureModeHelp: String {
+        parameters.noTexture
+            ? "Skips texture baking and exports mesh geometry only."
+            : "Bakes image-based texture maps into the exported model."
+    }
+
     private func presetButton(_ title: String, pipeline: String, texture: Int) -> some View {
         Button(title) {
             parameters.pipelineType = pipeline
             parameters.textureSize = texture
+            parameters.noTexture = false
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 10)

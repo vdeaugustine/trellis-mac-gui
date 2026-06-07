@@ -27,7 +27,6 @@ struct ModelViewerPanel: View {
             RoundedRectangle(cornerRadius: Theme.CornerRadius.panel)
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         )
-        .padding(24)
         .onChange(of: record?.id) { _, _ in
             loadModel()
         }
@@ -40,7 +39,7 @@ struct ModelViewerPanel: View {
 
     private var toolbar: some View {
         HStack {
-            Text("3D Viewer")
+            Text("3D Output")
                 .font(.headline)
 
             Spacer()

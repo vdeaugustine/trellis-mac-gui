@@ -39,6 +39,9 @@ final class GenerationRecord {
     
     /// The resolution of the generated texture maps.
     var textureSize: Int
+
+    /// Whether the generation skips texture baking and exports geometry only.
+    var noTexture: Bool = false
     
     /// The number of vertices in the generated 3D model.
     ///
@@ -74,6 +77,7 @@ final class GenerationRecord {
     ///   - seed: The random seed to use for generation.
     ///   - pipelineType: The type of generation pipeline to run.
     ///   - textureSize: The desired texture resolution.
+    ///   - noTexture: Whether to skip texture baking and export geometry only.
     ///   - status: The initial state of the generation. Defaults to `.queued`.
     ///   - createdAt: The creation date of the record. Defaults to the current time.
     init(
@@ -82,6 +86,7 @@ final class GenerationRecord {
         seed: Int,
         pipelineType: String,
         textureSize: Int,
+        noTexture: Bool = false,
         status: GenerationStatus = .queued,
         createdAt: Date = Date()
     ) {
@@ -90,6 +95,7 @@ final class GenerationRecord {
         self.seed = seed
         self.pipelineType = pipelineType
         self.textureSize = textureSize
+        self.noTexture = noTexture
         self.status = status
         self.createdAt = createdAt
     }

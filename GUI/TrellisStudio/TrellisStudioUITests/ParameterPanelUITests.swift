@@ -85,7 +85,7 @@ final class ParameterPanelUITests: XCTestCase {
     // MARK: - Parameter Labels
 
     func testParameterTitleExists() {
-        let title = app.staticTexts["Generation Parameters"]
+        let title = app.staticTexts["Generation Settings"]
         if title.waitForExistence(timeout: 5) {
             XCTAssertTrue(title.exists)
         }
@@ -106,7 +106,7 @@ final class ParameterPanelUITests: XCTestCase {
     }
 
     func testTextureSizeLabelExists() {
-        let label = app.staticTexts["Texture Size"]
+        let label = app.staticTexts["Texture Resolution"]
         if label.waitForExistence(timeout: 5) {
             XCTAssertTrue(label.exists)
         }

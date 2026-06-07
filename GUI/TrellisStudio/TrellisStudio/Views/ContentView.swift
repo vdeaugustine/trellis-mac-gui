@@ -34,20 +34,18 @@ struct MainWorkspaceView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Error banner
             if logger.showErrorBanner, let errorMsg = logger.lastError {
                 errorBanner(errorMsg)
             }
 
-            // Daemon status bar
             daemonStatusBar
 
-            // Live console (collapsible)
-            daemonConsoleSection
-
-            HStack(spacing: 24) {
-                InputPanel(inputImageURL: $inputImageURL)
-                    .frame(maxWidth: .infinity)
+            HStack(alignment: .top, spacing: 20) {
+                OutputWorkspaceView(
+                    inputImageURL: $inputImageURL,
+                    consoleExpanded: $consoleExpanded
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 ParameterPanel(
                     parameters: parameters,
@@ -57,18 +55,6 @@ struct MainWorkspaceView: View {
                 .frame(width: 320)
             }
             .padding(24)
-
-            Divider()
-
-            // Progress view during active generation
-            if let active = generation.activeRecord {
-                GenerationProgressView(record: active)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 12)
-            }
-
-            ModelViewerPanel(record: generation.lastCompletedRecord)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Theme.background)
         .preferredColorScheme(.dark)
@@ -115,7 +101,8 @@ struct MainWorkspaceView: View {
             inputImagePath: imageURL.path,
             seed: parameters.seed,
             pipelineType: parameters.pipelineType,
-            textureSize: parameters.textureSize
+            textureSize: parameters.textureSize,
+            noTexture: parameters.noTexture
         )
 
         generation.addToQueue(record: record, modelContext: modelContext)
@@ -173,23 +160,6 @@ struct MainWorkspaceView: View {
             }
         }
         .background(Color.white.opacity(0.02))
-    }
-
-    /// Live console output from daemon stderr, shown during startup/loading.
-    @ViewBuilder
-    private var daemonConsoleSection: some View {
-        if !daemon.consoleOutput.isEmpty {
-            DaemonConsoleView(isExpanded: $consoleExpanded)
-                .environmentObject(daemon)
-                .onAppear {
-                    if daemon.isWarmingUp || daemon.connectionStatus != nil {
-                        consoleExpanded = true
-                    }
-                }
-                .onChange(of: daemon.isWarmingUp) { _, warming in
-                    if warming { consoleExpanded = true }
-                }
-        }
     }
 
     private func gatedAccessRecoveryCard(repo: String) -> some View {
@@ -331,5 +301,68 @@ struct MainWorkspaceView: View {
         .padding(.top, 8)
         .transition(.move(edge: .top).combined(with: .opacity))
         .accessibilityIdentifier(AccessibilityID.errorBanner)
+    }
+}
+
+/// Main production workspace for source image, generation progress, output viewer, and logs.
+struct OutputWorkspaceView: View {
+    @EnvironmentObject private var daemon: DaemonManager
+    @EnvironmentObject private var generation: GenerationService
+
+    @Binding var inputImageURL: URL?
+    @Binding var consoleExpanded: Bool
+
+    var body: some View {
+        VStack(spacing: 16) {
+            sourceSection
+
+            if let active = generation.activeRecord {
+                GenerationProgressView(record: active)
+            }
+
+            ModelViewerPanel(record: generation.lastCompletedRecord)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minHeight: 360)
+
+            daemonConsoleSection
+        }
+        .frame(maxHeight: .infinity)
+        .onAppear(perform: expandConsoleIfActive)
+        .onChange(of: daemon.isWarmingUp) { _, warming in
+            if warming { consoleExpanded = true }
+        }
+    }
+
+    private var sourceSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Source Image")
+                    .font(.headline)
+                Spacer()
+                if let inputImageURL {
+                    Text(inputImageURL.lastPathComponent)
+                        .font(.caption)
+                        .foregroundColor(Theme.slateGray)
+                        .lineLimit(1)
+                }
+            }
+
+            InputPanel(inputImageURL: $inputImageURL)
+                .frame(minHeight: 220, idealHeight: 260, maxHeight: 320)
+        }
+    }
+
+    @ViewBuilder
+    private var daemonConsoleSection: some View {
+        if !daemon.consoleOutput.isEmpty {
+            DaemonConsoleView(isExpanded: $consoleExpanded)
+                .environmentObject(daemon)
+        }
+    }
+
+    private func expandConsoleIfActive() {
+        if daemon.isWarmingUp || daemon.connectionStatus != nil {
+            consoleExpanded = true
+        }
     }
 }
