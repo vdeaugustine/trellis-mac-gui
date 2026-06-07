@@ -131,17 +131,104 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Account Settings")
                 .font(.title2).bold()
-            
+
+            // Token section
             VStack(alignment: .leading, spacing: 8) {
                 Text("HuggingFace Access Token")
                     .font(.headline)
+
+                if HFAuthService.shared.isTokenValid {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundColor(Theme.successGreen)
+                        Text("Authenticated as \(HFAuthService.shared.username)")
+                            .foregroundColor(Theme.successGreen)
+                    }
+                }
+
                 SecureField("hf_...", text: $settings.hfToken)
                     .textFieldStyle(.roundedBorder)
-                
-                Text("Securely stored in your user settings. Required for downloading weights.")
+
+                HStack(spacing: 12) {
+                    Button("Validate Token") {
+                        Task {
+                            await HFAuthService.shared.performValidation(token: settings.hfToken)
+                            if HFAuthService.shared.isTokenValid {
+                                _ = HFAuthService.shared.saveTokenToHFCache(settings.hfToken)
+                                await HFAuthService.shared.checkAllGatedAccess(token: settings.hfToken)
+                            }
+                        }
+                    }
+                    .disabled(settings.hfToken.isEmpty || HFAuthService.shared.isValidating)
+
+                    if HFAuthService.shared.isValidating {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+
+                Text("Also saved to ~/.cache/huggingface/token for Python tools.")
                     .font(.caption)
                     .foregroundColor(Theme.slateGray)
             }
+
+            Divider()
+
+            // Gated access section
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Gated Model Access")
+                        .font(.headline)
+                    Spacer()
+                    Button("Refresh") {
+                        Task {
+                            await HFAuthService.shared.checkAllGatedAccess(token: settings.hfToken)
+                        }
+                    }
+                    .font(.caption)
+                    .disabled(settings.hfToken.isEmpty)
+                }
+
+                ForEach(HFAuthService.shared.gatedModels) { model in
+                    HStack(spacing: 10) {
+                        accessIcon(for: model.status)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(model.displayName)
+                                .font(.subheadline)
+                            Text(model.repoId)
+                                .font(.caption2)
+                                .foregroundColor(Theme.slateGray)
+                                .monospaced()
+                        }
+                        Spacer()
+                        if model.status == .denied {
+                            Button("Request") {
+                                NSWorkspace.shared.open(model.requestURL)
+                            }
+                            .font(.caption)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func accessIcon(for status: GatedModelStatus) -> some View {
+        switch status {
+        case .granted:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(Theme.successGreen)
+        case .denied:
+            Image(systemName: "lock.fill")
+                .foregroundColor(Theme.warningAmber)
+        case .checking:
+            ProgressView().controlSize(.mini)
+        case .error:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(Theme.errorRed)
+        case .unknown:
+            Image(systemName: "circle.dashed")
+                .foregroundColor(Theme.slateGray)
         }
     }
     

@@ -7,7 +7,6 @@ struct OnboardingView: View {
     @State private var currentStep = 1
     @State private var hfToken = ""
     @State private var tokenValid = false
-    @State private var validatingToken = false
     
     @State private var installLogs: [InstallLogEntry] = []
     @State private var installStatus: InstallStatus = .idle
@@ -419,47 +418,10 @@ struct OnboardingView: View {
     }
     
     private var huggingFaceStep: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("HuggingFace Access Token")
-                .font(.title2).bold()
-            Text("Required to download gated model weights. Get one from huggingface.co.")
-                .font(.body)
-                .foregroundColor(Theme.slateGray)
-            
-            HStack {
-                SecureField("hf_...", text: $hfToken)
-                    .textFieldStyle(.roundedBorder)
-                
-                Button(validatingToken ? "Testing..." : "Test Token") {
-                    validatingToken = true
-                    Task {
-                        let ok = await onboarding.validateHFToken(hfToken)
-                        await MainActor.run {
-                            tokenValid = ok
-                            validatingToken = false
-                        }
-                    }
-                }
-                .disabled(validatingToken || hfToken.isEmpty)
-            }
-            
-            if tokenValid {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Theme.successGreen)
-                    Text("Token valid and authorized")
-                        .foregroundColor(Theme.successGreen)
-                }
-            } else if !hfToken.isEmpty && !validatingToken {
-                HStack {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(Theme.errorRed)
-                        .foregroundColor(Theme.errorRed)
-                    Text("Invalid token or authentication failed")
-                        .foregroundColor(Theme.errorRed)
-                }
-            }
-        }
+        HuggingFaceOnboardingStep(
+            hfToken: $hfToken,
+            tokenValid: $tokenValid
+        )
     }
     
     private var readyStep: some View {

@@ -222,21 +222,4 @@ final class OnboardingService: ObservableObject {
         }
     }
     
-    // MARK: - HuggingFace Token
-    
-    func validateHFToken(_ token: String) async -> Bool {
-        guard !token.isEmpty else { return false }
-        var request = URLRequest(url: URL(string: "https://huggingface.co/api/whoami-v2")!)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse {
-                return httpResponse.statusCode == 200
-            }
-        } catch {
-            return false
-        }
-        return false
-    }
 }

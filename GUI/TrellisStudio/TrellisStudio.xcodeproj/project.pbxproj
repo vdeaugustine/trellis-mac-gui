@@ -27,6 +27,8 @@
 		91C7F636E1C9121C00D7F3E9 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */; };
 		A33583324D3E2466D56240C1 /* OnboardingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150C48CA32D45BF9034088F4 /* OnboardingService.swift */; };
 		A78F8068F8B51E4B826A6D6C /* WatchdogErrorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5F577A59CB928133035D3F /* WatchdogErrorSheet.swift */; };
+		AB4617723ABD066225C2F1CE /* HuggingFaceOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EC36C6BD10BC0994A33D509 /* HuggingFaceOnboardingStep.swift */; };
+		CD276650155440AA9E48C8DE /* HFAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B128C941A3B7EFCB788F2B /* HFAuthService.swift */; };
 		CD9D8DE5CE0D00BAF2CFEF8A /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8524AC5121A0C5DCDBFD1E2 /* SidebarView.swift */; };
 		E221C631830549C5710FAA0B /* InputPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F917E62D31297AF8DF6042 /* InputPanel.swift */; };
 		EA3D5EDA29B4C6F9D1EB57D2 /* GenerationParameters.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDCE7F3725BA9F573B49D551 /* GenerationParameters.swift */; };
@@ -50,6 +52,7 @@
 		17A18603C13E4019F87F423F /* Animations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Animations.swift; sourceTree = "<group>"; };
 		1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		2EC36C6BD10BC0994A33D509 /* HuggingFaceOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HuggingFaceOnboardingStep.swift; sourceTree = "<group>"; };
 		304EFF1C5FD946198516F114 /* TrellisStudioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrellisStudioTests.swift; sourceTree = "<group>"; };
 		32232A13B2B6129105F0D725 /* DaemonManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonManager.swift; sourceTree = "<group>"; };
 		34F917E62D31297AF8DF6042 /* InputPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputPanel.swift; sourceTree = "<group>"; };
@@ -60,6 +63,7 @@
 		5884350A564B0A77E88BA415 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		62BE4D543A460BD8A811FD71 /* GenerationStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationStatus.swift; sourceTree = "<group>"; };
 		869D6915219102C0825431FF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		89B128C941A3B7EFCB788F2B /* HFAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HFAuthService.swift; sourceTree = "<group>"; };
 		B0F327A6E3ABB64075214FA8 /* HistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryService.swift; sourceTree = "<group>"; };
 		BAF8DEC550980B71B79146FF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C8524AC5121A0C5DCDBFD1E2 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
@@ -81,6 +85,7 @@
 				0131F681477EC5B0DC757BE1 /* BatchQueueView.swift */,
 				52B6DE8EC5978EABE9F19700 /* CleanupSettingsTab.swift */,
 				28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */,
+				2EC36C6BD10BC0994A33D509 /* HuggingFaceOnboardingStep.swift */,
 				34F917E62D31297AF8DF6042 /* InputPanel.swift */,
 				E422307C0BAC7A33F440BC5C /* ModelViewerPanel.swift */,
 				1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */,
@@ -107,6 +112,7 @@
 				CB57077658E0F96AF0088661 /* CleanupService.swift */,
 				32232A13B2B6129105F0D725 /* DaemonManager.swift */,
 				1649441A8794A6B88061C95B /* GenerationService.swift */,
+				89B128C941A3B7EFCB788F2B /* HFAuthService.swift */,
 				B0F327A6E3ABB64075214FA8 /* HistoryService.swift */,
 				150C48CA32D45BF9034088F4 /* OnboardingService.swift */,
 				DDBC04AC272DDD358A86F04F /* SettingsService.swift */,
@@ -283,7 +289,9 @@
 				7D95DD5F806B8E222A8946D7 /* GenerationRecord.swift in Sources */,
 				3E9EBFD91A63720F7DA20A88 /* GenerationService.swift in Sources */,
 				11C0E73CC232004EDAED5539 /* GenerationStatus.swift in Sources */,
+				CD276650155440AA9E48C8DE /* HFAuthService.swift in Sources */,
 				058EB80336859BE87391DBF3 /* HistoryService.swift in Sources */,
+				AB4617723ABD066225C2F1CE /* HuggingFaceOnboardingStep.swift in Sources */,
 				E221C631830549C5710FAA0B /* InputPanel.swift in Sources */,
 				2C623F2967EB94AB9E782415 /* ModelViewerPanel.swift in Sources */,
 				A33583324D3E2466D56240C1 /* OnboardingService.swift in Sources */,
