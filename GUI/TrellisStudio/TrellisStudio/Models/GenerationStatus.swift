@@ -47,6 +47,9 @@ enum GenerationStatus: String, Codable, CaseIterable {
     
     /// The daemon was shut down during the generation process.
     case shutdown = "shutdown"
+
+    /// The generation was cancelled by the user.
+    case cancelled = "cancelled"
     
     /// A localized, human-readable name for the status.
     ///
@@ -67,6 +70,7 @@ enum GenerationStatus: String, Codable, CaseIterable {
         case .failed: return "Failed"
         case .failedWatchdog: return "Failed (Watchdog)"
         case .shutdown: return "Shutdown"
+        case .cancelled: return "Cancelled"
         }
     }
 }

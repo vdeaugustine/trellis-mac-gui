@@ -53,6 +53,9 @@ final class DaemonManager: ObservableObject {
     /// A user-facing status message used during daemon startup and connection phases.
     @Published var connectionStatus: String?
 
+    /// Recent stderr lines from the daemon process, surfaced for the UI console.
+    @Published var consoleOutput: [String] = []
+
     /// A Boolean value that indicates whether the daemon is running in dry-run mode.
     var isDryRun = false
 
@@ -288,13 +291,21 @@ final class DaemonManager: ObservableObject {
         let stage = response["stage"] as? String ?? ""
         let status = response["status"] as? String ?? ""
 
-        // Forward to registered callbacks
-        for cb in progressCallbacks { cb(response) }
-
-        // Handle daemon lifecycle events
+        // Handle daemon lifecycle events first (don't forward to generation callbacks)
         if stage == "daemonStatus" {
             handleDaemonStatus(response)
             return
+        }
+
+        // Forward non-lifecycle responses to registered callbacks
+        for cb in progressCallbacks { cb(response) }
+
+        // Surface pipeline loading messages to console for user visibility
+        if stage == "loadingPipeline", let message = response["message"] as? String {
+            consoleOutput.append("[pipeline] \(message)")
+            if consoleOutput.count > 200 {
+                consoleOutput.removeFirst(consoleOutput.count - 200)
+            }
         }
 
         if let stageEnum = GenerationStatus(rawValue: stage) {
@@ -391,6 +402,26 @@ final class DaemonManager: ObservableObject {
             } else {
                 log.warning("stderr: \(line)", context: "Daemon")
             }
+
+            // Surface to UI console
+            let captured = line
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.consoleOutput.append(captured)
+                // Keep buffer bounded
+                if self.consoleOutput.count > 200 {
+                    self.consoleOutput.removeFirst(self.consoleOutput.count - 200)
+                }
+                // Update connection status with daemon step messages
+                if captured.hasPrefix("[daemon]"), !self.isReady {
+                    let cleaned = captured
+                        .replacingOccurrences(of: "[daemon] ", with: "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !cleaned.isEmpty {
+                        self.connectionStatus = cleaned
+                    }
+                }
+            }
         }
     }
 
@@ -423,6 +454,9 @@ final class DaemonManager: ObservableObject {
                         self.pipelineLoadProgress = nil
                     }
                 }
+            } else if !self.progressCallbacks.isEmpty {
+                // Generation in progress — don't send status polls,
+                // they interfere with pipeline loading responses
             } else if (!self.isReady && !self.isOffline) || self.isWarmingUp {
                 self.sendRequest(command: ["command": "status"])
             }

@@ -91,6 +91,37 @@ final class GenerationService: ObservableObject {
         }
     }
 
+    /// Cancels the currently active generation and cleans up its output files.
+    func cancelActive() {
+        guard let record = activeRecord else {
+            log.warning("No active generation to cancel", context: "Generation")
+            return
+        }
+
+        log.info("Cancelling generation: \(record.id)", context: "Generation")
+
+        // Tell daemon to abort (it will ignore if already done)
+        DaemonManager.shared.sendRequest(command: ["command": "cancel"])
+
+        // Mark as cancelled
+        record.status = .cancelled
+
+        // Clean up output directory
+        let fileManager = FileManager.default
+        let appSupportDir = fileManager.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        ).first!
+        let generationDir = appSupportDir.appendingPathComponent(
+            "com.vinware.trellis-studio/Generations/\(record.id.uuidString)"
+        )
+        if fileManager.fileExists(atPath: generationDir.path) {
+            try? fileManager.removeItem(at: generationDir)
+            log.info("Cleaned up output directory: \(generationDir.path)", context: "Generation")
+        }
+
+        finishActive()
+    }
+
     private func runGeneration(record: GenerationRecord) async {
         let fileManager = FileManager.default
         let appSupportDir = fileManager.urls(

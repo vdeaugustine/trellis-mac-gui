@@ -156,27 +156,56 @@ except Exception:
     pass
 
 # ── Lazy-loaded heavy modules ──────────────────────────────────────────
-# torch and PIL are imported on first use (not at startup) so the TCP
-# server can bind its port immediately. Once imported, they're cached.
+# torch and PIL are imported eagerly in a background thread once the TCP
+# server binds. get_torch()/get_pil_image() block until ready.
 _torch = None
 _PILImage = None
+_warmup_done = threading.Event()
+_warmup_lock = threading.Lock()
 
 
 def get_torch():
-    """Lazy-import torch. Cached after first call."""
-    global _torch
-    if _torch is None:
-        _torch = __import__("torch")
+    """Get torch module. Blocks until background warmup finishes."""
+    _warmup_done.wait()
     return _torch
 
 
 def get_pil_image():
-    """Lazy-import PIL.Image. Cached after first call."""
-    global _PILImage
-    if _PILImage is None:
+    """Get PIL.Image module. Blocks until background warmup finishes."""
+    _warmup_done.wait()
+    return _PILImage
+
+
+def _run_warmup():
+    """Background thread: import torch and PIL so first generation is fast."""
+    global _torch, _PILImage
+    try:
+        sys.stderr.write("[daemon] Warmup: importing torch...\n")
+        sys.stderr.flush()
+        _torch = __import__("torch")
+        sys.stderr.write(f"[daemon] Warmup: torch {_torch.__version__} OK\n")
+        sys.stderr.flush()
+
+        sys.stderr.write("[daemon] Warmup: importing PIL...\n")
+        sys.stderr.flush()
         from PIL import Image
         _PILImage = Image
-    return _PILImage
+        sys.stderr.write("[daemon] Warmup: PIL OK\n")
+        sys.stderr.flush()
+
+        # Notify any waiters that modules are ready
+        send_response({
+            "stage": "daemonStatus",
+            "status": "ready",
+            "pipeline_loaded": False,
+            "warmup_complete": True,
+            "message": "Core imports ready. Pipeline loads on first generation.",
+        })
+    except Exception as e:
+        sys.stderr.write(f"[daemon] Warmup FAILED: {e}\n")
+        sys.stderr.flush()
+    finally:
+        _warmup_done.set()
 
 # ── Constants ──────────────────────────────────────────────────────────
 IDLE_TIMEOUT_SECONDS = 30 * 60  # 30 minutes default
@@ -643,8 +672,14 @@ class DaemonServer:
             "status": "ready",
             "pipeline_loaded": False,
             "port": actual_port,
-            "message": "Daemon listening. Pipeline loads on first generation.",
+            "message": "Daemon listening. Warming up imports in background…",
         })
+
+        # Start importing torch/PIL in the background immediately
+        warmup_thread = threading.Thread(
+            target=_run_warmup, name="ImportWarmup", daemon=True
+        )
+        warmup_thread.start()
 
         self._accept_loop()
 

@@ -30,6 +30,7 @@ struct MainWorkspaceView: View {
 
     @State private var inputImageURL: URL?
     @State private var parameters = GenerationParameters()
+    @State private var consoleExpanded = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,6 +41,9 @@ struct MainWorkspaceView: View {
 
             // Daemon status bar
             daemonStatusBar
+
+            // Live console (collapsible)
+            daemonConsoleSection
 
             HStack(spacing: 24) {
                 InputPanel(inputImageURL: $inputImageURL)
@@ -168,6 +172,23 @@ struct MainWorkspaceView: View {
             }
         }
         .background(Color.white.opacity(0.02))
+    }
+
+    /// Live console output from daemon stderr, shown during startup/loading.
+    @ViewBuilder
+    private var daemonConsoleSection: some View {
+        if !daemon.consoleOutput.isEmpty {
+            DaemonConsoleView(isExpanded: $consoleExpanded)
+                .environmentObject(daemon)
+                .onAppear {
+                    if daemon.isWarmingUp || daemon.connectionStatus != nil {
+                        consoleExpanded = true
+                    }
+                }
+                .onChange(of: daemon.isWarmingUp) { _, warming in
+                    if warming { consoleExpanded = true }
+                }
+        }
     }
 
     private func gatedAccessRecoveryCard(repo: String) -> some View {

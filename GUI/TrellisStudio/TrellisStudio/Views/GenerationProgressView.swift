@@ -27,7 +27,23 @@ struct GenerationProgressView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(Theme.successGreen)
                 } else {
-                    ProgressView().controlSize(.small)
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Button(action: { generation.cancelActive() }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark.circle.fill")
+                                Text("Cancel")
+                            }
+                            .font(.caption)
+                            .foregroundColor(Theme.errorRed)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Theme.errorRed.opacity(0.12))
+                            .cornerRadius(Theme.CornerRadius.button)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("cancelGenerationButton")
+                    }
                 }
             }
 

@@ -11,6 +11,7 @@
 		11C0E73CC232004EDAED5539 /* GenerationStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BE4D543A460BD8A811FD71 /* GenerationStatus.swift */; };
 		1C88F9D73CDA649738007721 /* DaemonManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32232A13B2B6129105F0D725 /* DaemonManager.swift */; };
 		1D6A51FDC3E84B5EB4D09F21 /* DaemonRuntimeSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CC68AE2F413437A84B44E19 /* DaemonRuntimeSupport.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* DaemonConsoleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6071829A1B2C3D43A5C /* DaemonConsoleView.swift */; };
 		6F3B8D1C0E9A2745F6B8C3D1 /* DaemonTCPConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E4C9A2B1D8F0365E4A7B892 /* DaemonTCPConnection.swift */; };
 		1C89DC874A7E17C02915BC63 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BAF8DEC550980B71B79146FF /* Assets.xcassets */; };
 		246445A66A7DF2BCCDD89F02 /* TrellisStudioApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3800E24E6485AC14E9A44CB0 /* TrellisStudioApp.swift */; };
@@ -62,6 +63,7 @@
 		9F8E7D6C5B4A3210FEDCBA98 /* AccessibilityID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityID.swift; sourceTree = "<group>"; };
 		1BDB01A6F121D21B656CAA47 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D4E5F6071829A1B2C3D43A5C /* DaemonConsoleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonConsoleView.swift; sourceTree = "<group>"; };
 		2E5D0A5CFBDFE49616D49477 /* WeightDownloadOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightDownloadOnboardingStep.swift; sourceTree = "<group>"; };
 		2EC36C6BD10BC0994A33D509 /* HuggingFaceOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HuggingFaceOnboardingStep.swift; sourceTree = "<group>"; };
 		304EFF1C5FD946198516F114 /* TrellisStudioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrellisStudioTests.swift; sourceTree = "<group>"; };
@@ -103,6 +105,7 @@
 				0131F681477EC5B0DC757BE1 /* BatchQueueView.swift */,
 				52B6DE8EC5978EABE9F19700 /* CleanupSettingsTab.swift */,
 				28306A45F4F8DF1F7CEDFD10 /* ContentView.swift */,
+				D4E5F6071829A1B2C3D43A5C /* DaemonConsoleView.swift */,
 				87B4622074EB1E6AF9C7F104 /* GenerationProgressView.swift */,
 				2EC36C6BD10BC0994A33D509 /* HuggingFaceOnboardingStep.swift */,
 				34F917E62D31297AF8DF6042 /* InputPanel.swift */,
@@ -314,6 +317,7 @@
 				51EB7CC339712F636D79B3E3 /* CleanupService.swift in Sources */,
 				516664464B2596F1FE655438 /* CleanupSettingsTab.swift in Sources */,
 				91C7F636E1C9121C00D7F3E9 /* ContentView.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* DaemonConsoleView.swift in Sources */,
 				1C88F9D73CDA649738007721 /* DaemonManager.swift in Sources */,
 				1D6A51FDC3E84B5EB4D09F21 /* DaemonRuntimeSupport.swift in Sources */,
 				6F3B8D1C0E9A2745F6B8C3D1 /* DaemonTCPConnection.swift in Sources */,

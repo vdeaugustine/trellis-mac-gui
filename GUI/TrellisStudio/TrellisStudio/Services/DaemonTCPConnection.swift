@@ -1,96 +1,113 @@
 import Foundation
+import Network
 
-/// Manages a TCP connection to the daemon process.
+/// Manages a TCP connection to the daemon process using Network.framework.
 ///
-/// Use `DaemonTCPConnection` to establish a persistent connection with the Python backend.
-/// It provides methods for connecting, sending JSON payloads, and parsing incoming JSON
-/// responses asynchronously.
+/// Uses `NWConnection` instead of CFStream to avoid priority inversions and
+/// properly handle asynchronous connection establishment. The old CFStream
+/// approach checked stream status immediately after a non-blocking `open()`,
+/// which always failed because the status was `.opening` (1), not `.open` (2).
 final class DaemonTCPConnection {
-    private var inputStream: InputStream?
-    private var outputStream: OutputStream?
-    private var readThread: Thread?
+
+    private var connection: NWConnection?
     private var readBuffer = Data()
-    private let connectQueue = DispatchQueue(
-        label: "com.vinware.trellis-studio.daemon-tcp-connect",
+
+    private let networkQueue = DispatchQueue(
+        label: "com.vinware.trellis-studio.daemon-tcp",
         qos: .userInitiated
     )
 
     private let log = AppLogger.shared
-    
-    /// A closure that is called whenever a complete JSON response is received.
+
+    /// Called whenever a complete JSON response is received from the daemon.
     var onResponse: (([String: Any]) -> Void)?
-    
-    /// A closure that is called when the TCP connection disconnects or fails.
+
+    /// Called when the TCP connection disconnects or fails.
     var onDisconnect: (() -> Void)?
 
-    /// A Boolean value that indicates whether the TCP connection is currently open.
+    /// Whether the TCP connection is currently in the `.ready` state.
     var isConnected: Bool {
-        guard let input = inputStream, let output = outputStream else {
-            return false
-        }
-        return input.streamStatus == .open && output.streamStatus == .open
+        connection?.state == .ready
     }
 
     // MARK: - Connect
 
-    /// Establishes a TCP connection to the specified localhost port.
+    /// Establishes a TCP connection to localhost on the given port.
     ///
-    /// - Parameter port: The port number to connect to.
-    /// - Parameter completion: A closure that receives whether the streams opened successfully.
+    /// - Parameters:
+    ///   - port: The port number the daemon is listening on.
+    ///   - completion: Called on the main queue with `true` if connected.
     func connect(port: Int, completion: @escaping (Bool) -> Void) {
-        connectQueue.async { [weak self] in
+        // Tear down any existing connection first
+        disconnectInternal()
+
+        guard let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
+            log.error("Invalid port number: \(port)", context: "Daemon")
+            DispatchQueue.main.async { completion(false) }
+            return
+        }
+
+        let host = NWEndpoint.Host("127.0.0.1")
+        let params = NWParameters.tcp
+        params.requiredInterfaceType = .loopback
+
+        let conn = NWConnection(host: host, port: nwPort, using: params)
+        self.connection = conn
+
+        var completionCalled = false
+
+        conn.stateUpdateHandler = { [weak self] state in
             guard let self else { return }
-            let connected = self.openConnection(port: port)
-            DispatchQueue.main.async {
-                completion(connected)
+            switch state {
+            case .ready:
+                if !completionCalled {
+                    completionCalled = true
+                    self.log.info("TCP connected to daemon on port \(port)", context: "Daemon")
+                    self.startReceiving()
+                    DispatchQueue.main.async { completion(true) }
+                }
+
+            case .failed(let error):
+                self.log.error("TCP connection failed: \(error.localizedDescription)", context: "Daemon")
+                if !completionCalled {
+                    completionCalled = true
+                    DispatchQueue.main.async { completion(false) }
+                }
+                self.handleConnectionLost()
+
+            case .cancelled:
+                if !completionCalled {
+                    completionCalled = true
+                    DispatchQueue.main.async { completion(false) }
+                }
+
+            case .waiting(let error):
+                self.log.warning("TCP connection waiting: \(error.localizedDescription)", context: "Daemon")
+
+            default:
+                break
             }
         }
-    }
 
-    private func openConnection(port: Int) -> Bool {
-        var readStream: Unmanaged<CFReadStream>?
-        var writeStream: Unmanaged<CFWriteStream>?
+        conn.start(queue: networkQueue)
 
-        CFStreamCreatePairWithSocketToHost(
-            nil,
-            "127.0.0.1" as CFString,
-            UInt32(port),
-            &readStream,
-            &writeStream
-        )
-
-        guard let input = readStream?.takeRetainedValue() as InputStream?,
-              let output = writeStream?.takeRetainedValue() as OutputStream? else {
-            log.error("Failed to create TCP streams for port \(port)", context: "Daemon")
-            return false
+        // Timeout: if not connected within 5 seconds, fail
+        networkQueue.asyncAfter(deadline: .now() + 5) { [weak self] in
+            guard !completionCalled else { return }
+            completionCalled = true
+            self?.log.error("TCP connect timed out after 5s on port \(port)", context: "Daemon")
+            conn.cancel()
+            DispatchQueue.main.async { completion(false) }
         }
-
-        input.open()
-        output.open()
-
-        guard input.streamStatus == .open, output.streamStatus == .open else {
-            let status = "input=\(input.streamStatus.rawValue) output=\(output.streamStatus.rawValue)"
-            log.error("TCP connection failed — stream status: \(status)", context: "Daemon")
-            input.close()
-            output.close()
-            return false
-        }
-
-        self.inputStream = input
-        self.outputStream = output
-        startReading()
-
-        log.info("TCP connected to daemon on port \(port)", context: "Daemon")
-        return true
     }
 
     // MARK: - Send
 
-    /// Encodes a dictionary as JSON and writes it to the TCP output stream.
+    /// Encodes a dictionary as JSON and writes it to the TCP connection.
     ///
     /// - Parameter command: The dictionary to encode and send.
     func send(command: [String: Any]) {
-        guard let output = outputStream, output.streamStatus == .open else {
+        guard let conn = connection, conn.state == .ready else {
             log.error("Cannot send — TCP not connected", context: "Daemon")
             return
         }
@@ -102,58 +119,48 @@ final class DaemonTCPConnection {
             jsonStr += "\n"
             guard let lineData = jsonStr.data(using: .utf8) else { return }
 
-            lineData.withUnsafeBytes { buffer in
-                guard let ptr = buffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
-                output.write(ptr, maxLength: lineData.count)
-            }
+            conn.send(content: lineData, completion: .contentProcessed { [weak self] error in
+                if let error {
+                    self?.log.error("TCP send error: \(error.localizedDescription)", context: "Daemon")
+                }
+            })
             log.info("→ \(jsonStr.prefix(200))", context: "Daemon")
         } catch {
             log.error("JSON serialize error: \(error.localizedDescription)", context: "Daemon")
         }
     }
 
-    // MARK: - Read Loop
+    // MARK: - Receive Loop
 
-    private func startReading() {
-        let thread = Thread { [weak self] in
-            self?.readLoop()
-        }
-        thread.name = "DaemonTCPReader"
-        thread.qualityOfService = .userInitiated
-        thread.start()
-        self.readThread = thread
+    private func startReceiving() {
+        scheduleReceive()
     }
 
-    private func readLoop() {
-        guard let input = inputStream else { return }
-        let bufferSize = 8192
-        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-        defer { buffer.deallocate() }
+    private func scheduleReceive() {
+        guard let conn = connection, conn.state == .ready else { return }
 
-        while input.streamStatus == .open {
-            guard input.hasBytesAvailable else {
-                Thread.sleep(forTimeInterval: 0.01)
-                continue
+        conn.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] content, _, isComplete, error in
+            guard let self else { return }
+
+            if let data = content, !data.isEmpty {
+                self.readBuffer.append(data)
+                self.processLines()
             }
 
-            let bytesRead = input.read(buffer, maxLength: bufferSize)
-            if bytesRead <= 0 {
-                break  // EOF or error
+            if isComplete || error != nil {
+                self.handleConnectionLost()
+                return
             }
 
-            readBuffer.append(buffer, count: bytesRead)
-            processLines()
-        }
-
-        DispatchQueue.main.async { [weak self] in
-            self?.onDisconnect?()
+            // Continue reading
+            self.scheduleReceive()
         }
     }
 
     private func processLines() {
-        while let range = readBuffer.range(of: Data([10])) {  // newline
-            let lineData = readBuffer.subdata(in: 0..<range.lowerBound)
-            readBuffer.removeSubrange(0...range.lowerBound)
+        while let newlineIndex = readBuffer.firstIndex(of: 0x0A) {
+            let lineData = readBuffer[readBuffer.startIndex..<newlineIndex]
+            readBuffer.removeSubrange(readBuffer.startIndex...newlineIndex)
 
             guard let line = String(data: lineData, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -182,14 +189,22 @@ final class DaemonTCPConnection {
 
     // MARK: - Disconnect
 
-    /// Closes the connection streams and stops the reading thread.
+    /// Closes the connection and resets internal state.
     func disconnect() {
-        inputStream?.close()
-        outputStream?.close()
-        readThread?.cancel()
-        inputStream = nil
-        outputStream = nil
-        readThread = nil
+        disconnectInternal()
+    }
+
+    private func disconnectInternal() {
+        connection?.stateUpdateHandler = nil
+        connection?.cancel()
+        connection = nil
         readBuffer = Data()
+    }
+
+    private func handleConnectionLost() {
+        disconnectInternal()
+        DispatchQueue.main.async { [weak self] in
+            self?.onDisconnect?()
+        }
     }
 }
