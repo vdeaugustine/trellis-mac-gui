@@ -21,6 +21,10 @@ os.environ.setdefault("SPARSE_ATTN_BACKEND", "sdpa")
 if "SPARSE_CONV_BACKEND" not in os.environ:
     os.environ["SPARSE_CONV_BACKEND"] = "none"
 
+# Suppress expected MPS fallback warnings — we explicitly enabled fallback
+import warnings
+warnings.filterwarnings("ignore", message=".*not currently supported on the MPS backend.*")
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "TRELLIS.2"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "stubs"))
 

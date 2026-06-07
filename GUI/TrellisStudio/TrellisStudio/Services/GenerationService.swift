@@ -123,6 +123,19 @@ final class GenerationService: ObservableObject {
     }
 
     private func runGeneration(record: GenerationRecord) async {
+        // Log full job parameters for diagnostics
+        let dateFormatter = ISO8601DateFormatter()
+        log.info("""
+        ┌─ Generation Job ─────────────────────────
+        │ ID:        \(record.id)
+        │ Image:     \(URL(fileURLWithPath: record.inputImagePath).lastPathComponent)
+        │ Seed:      \(record.seed)
+        │ Pipeline:  \(record.pipelineType)
+        │ Texture:   \(record.textureSize)px
+        │ Started:   \(dateFormatter.string(from: Date()))
+        └───────────────────────────────────────────
+        """, context: "Generation")
+
         let fileManager = FileManager.default
         let appSupportDir = fileManager.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
