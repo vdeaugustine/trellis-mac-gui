@@ -120,10 +120,10 @@ struct MainWorkspaceView: View {
                     .accessibilityIdentifier(AccessibilityID.daemonStatusDot)
 
                 if daemon.isWarmingUp || daemon.connectionStatus != nil {
-                    ProgressView()
-                        .controlSize(.small)
+                    Image(systemName: "hourglass")
+                        .font(.caption)
+                        .foregroundColor(Theme.warningAmber)
                         .frame(width: 16, height: 16)
-                        .scaleEffect(0.7)
                 }
 
                 Text(daemonStatusText)
@@ -314,6 +314,8 @@ struct OutputWorkspaceView: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            pipelineStatusWidget
+
             sourceSection
 
             if let active = generation.activeRecord {
@@ -349,6 +351,14 @@ struct OutputWorkspaceView: View {
 
             InputPanel(inputImageURL: $inputImageURL)
                 .frame(minHeight: 220, idealHeight: 260, maxHeight: 320)
+        }
+    }
+
+    @ViewBuilder
+    private var pipelineStatusWidget: some View {
+        if daemon.isWarmingUp || daemon.connectionStatus != nil || daemon.pipelineLoadProgress != nil {
+            PipelineLoadStatusView()
+                .environmentObject(daemon)
         }
     }
 

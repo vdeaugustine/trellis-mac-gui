@@ -28,6 +28,9 @@ final class DaemonManager: ObservableObject {
     // TCP connection (primary communication channel)
     private var tcpConnection = DaemonTCPConnection()
     private var healthCheckTimer: Timer?
+    private var pipelineLoadStartedAt: Date?
+    private var pipelineLoadStepStartedAt: Date?
+    private var pipelineLoadStepKey: String?
 
     /// A Boolean value that indicates whether the daemon is fully ready to accept generation requests.
     @Published var isReady = false
@@ -290,6 +293,7 @@ final class DaemonManager: ObservableObject {
     private func handleDaemonResponse(_ response: [String: Any]) {
         let stage = response["stage"] as? String ?? ""
         let status = response["status"] as? String ?? ""
+        logDaemonResponse(response, stage: stage, status: status)
 
         // Handle daemon lifecycle events first (don't forward to generation callbacks)
         if stage == "daemonStatus" {
@@ -299,14 +303,6 @@ final class DaemonManager: ObservableObject {
 
         // Forward non-lifecycle responses to registered callbacks
         for cb in progressCallbacks { cb(response) }
-
-        // Surface pipeline loading messages to console for user visibility
-        if stage == "loadingPipeline", let message = response["message"] as? String {
-            consoleOutput.append("[pipeline] \(message)")
-            if consoleOutput.count > 200 {
-                consoleOutput.removeFirst(consoleOutput.count - 200)
-            }
-        }
 
         if let stageEnum = GenerationStatus(rawValue: stage) {
             switch stageEnum {
@@ -407,11 +403,7 @@ final class DaemonManager: ObservableObject {
             let captured = line
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
-                self.consoleOutput.append(captured)
-                // Keep buffer bounded
-                if self.consoleOutput.count > 200 {
-                    self.consoleOutput.removeFirst(self.consoleOutput.count - 200)
-                }
+                self.appendConsoleLine(captured)
                 // Update connection status with daemon step messages
                 if captured.hasPrefix("[daemon]"), !self.isReady {
                     let cleaned = captured
@@ -508,6 +500,9 @@ final class DaemonManager: ObservableObject {
         isReady = false
         isPipelineLoaded = false
         pipelineLoadProgress = nil
+        pipelineLoadStartedAt = nil
+        pipelineLoadStepStartedAt = nil
+        pipelineLoadStepKey = nil
         lastDaemonError = nil
         errorKind = .none
         stderrBuffer = Data()
@@ -527,6 +522,9 @@ final class DaemonManager: ObservableObject {
             self.isReady = false
             self.isPipelineLoaded = false
             self.pipelineLoadProgress = nil
+            self.pipelineLoadStartedAt = nil
+            self.pipelineLoadStepStartedAt = nil
+            self.pipelineLoadStepKey = nil
         }
     }
 
@@ -545,7 +543,10 @@ final class DaemonManager: ObservableObject {
             isOffline = false
             isReady = false
             isWarmingUp = true
-            pipelineLoadProgress = nil
+            if pipelineLoadProgress == nil {
+                pipelineLoadStartedAt = Date()
+                pipelineLoadStepStartedAt = pipelineLoadStartedAt
+            }
         }
     }
 
@@ -558,10 +559,27 @@ final class DaemonManager: ObservableObject {
         isOffline = false
         isReady = false
         isWarmingUp = true
+        let now = Date()
+        if status == "started" || pipelineLoadStartedAt == nil {
+            pipelineLoadStartedAt = now
+            pipelineLoadStepStartedAt = now
+            pipelineLoadStepKey = nil
+        }
+        let message = response["message"] as? String ?? "Preparing pipeline"
+        let phase = response["phase"] as? String ?? message
+        if pipelineLoadStepKey != phase {
+            pipelineLoadStepKey = phase
+            pipelineLoadStepStartedAt = now
+        }
         pipelineLoadProgress = DaemonPipelineLoadProgress(
-            message: response["message"] as? String ?? "Preparing pipeline",
+            message: message,
+            phase: phase,
+            detail: response["detail"] as? String,
             current: response["current"] as? Int ?? 0,
-            total: response["total"] as? Int ?? 0
+            total: response["total"] as? Int ?? 0,
+            startedAt: pipelineLoadStartedAt ?? now,
+            stepStartedAt: pipelineLoadStepStartedAt ?? now,
+            lastUpdatedAt: now
         )
     }
 
@@ -571,6 +589,9 @@ final class DaemonManager: ObservableObject {
         isReady = true
         isPipelineLoaded = pipelineLoaded
         pipelineLoadProgress = nil
+        pipelineLoadStartedAt = nil
+        pipelineLoadStepStartedAt = nil
+        pipelineLoadStepKey = nil
         connectionStatus = nil
         lastDaemonError = nil
         errorKind = .none
@@ -610,6 +631,44 @@ final class DaemonManager: ObservableObject {
             self.isWarmingUp = false
             self.isPipelineLoaded = false
             self.pipelineLoadProgress = nil
+            self.pipelineLoadStartedAt = nil
+            self.pipelineLoadStepStartedAt = nil
+            self.pipelineLoadStepKey = nil
         }
+    }
+
+    private func logDaemonResponse(_ response: [String: Any], stage: String, status: String) {
+        guard let message = response["message"] as? String else { return }
+        var fields = ["stage=\(stage)", "status=\(status)"]
+        if let current = response["current"] as? Int,
+           let total = response["total"] as? Int,
+           total > 0 {
+            fields.append("step=\(current)/\(total)")
+        }
+        if let phase = response["phase"] as? String {
+            fields.append("phase=\(phase)")
+        }
+        appendConsoleLine("[daemon] \(fields.joined(separator: " ")) \(message)")
+        if let detail = response["detail"] as? String, !detail.isEmpty {
+            appendConsoleLine("[daemon-detail] \(detail)")
+        }
+    }
+
+    /// Clears visible daemon console output.
+    func clearConsole() {
+        consoleOutput.removeAll()
+    }
+
+    private func appendConsoleLine(_ line: String) {
+        consoleOutput.append("[\(Self.consoleTimestamp())] \(line)")
+        if consoleOutput.count > 500 {
+            consoleOutput.removeFirst(consoleOutput.count - 500)
+        }
+    }
+
+    private static func consoleTimestamp() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: Date())
     }
 }

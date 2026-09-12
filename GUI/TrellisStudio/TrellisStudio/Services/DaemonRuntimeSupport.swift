@@ -6,6 +6,12 @@ import Foundation
 struct DaemonPipelineLoadProgress: Equatable {
     /// A short description of the current loading step.
     let message: String
+
+    /// Stable machine-readable loading phase sent by the daemon.
+    let phase: String
+
+    /// Optional detailed context for the current step.
+    let detail: String?
     
     /// The number of completed steps.
     let current: Int
@@ -13,15 +19,65 @@ struct DaemonPipelineLoadProgress: Equatable {
     /// The total number of steps in the loading process.
     let total: Int
 
+    /// When the whole pipeline load began.
+    let startedAt: Date
+
+    /// When the current loading phase began.
+    let stepStartedAt: Date
+
+    /// When the daemon last sent a progress update.
+    let lastUpdatedAt: Date
+
+    /// The normalized progress fraction, from `0.0` to `1.0`.
+    var fraction: Double {
+        guard total > 0 else { return 0 }
+        return min(1, max(0, Double(current) / Double(total)))
+    }
+
+    /// Integer percent, clamped to 0...100.
+    var percent: Int {
+        Int((fraction * 100).rounded())
+    }
+
+    /// Current step label suitable for compact UI.
+    var stepText: String {
+        guard total > 0 else { return "Waiting" }
+        return "\(min(max(current, 0), total))/\(total)"
+    }
+
     /// A formatted, human-readable status text representing the loading progress.
     var statusText: String {
         let cleanMessage = message.isEmpty ? "Preparing pipeline" : message
         guard total > 0 else {
             return "Loading Pipeline… \(cleanMessage)"
         }
-        let clampedCurrent = min(max(current, 0), total)
-        let percent = Int((Double(clampedCurrent) / Double(total) * 100).rounded())
-        return "Loading Pipeline… \(percent)% — \(cleanMessage) (\(clampedCurrent)/\(total))"
+        return "Loading Pipeline… \(percent)% — \(cleanMessage) (\(stepText))"
+    }
+
+    /// Returns total pipeline-load elapsed time at a given display instant.
+    func totalElapsed(at date: Date = Date()) -> TimeInterval {
+        max(0, date.timeIntervalSince(startedAt))
+    }
+
+    /// Returns current step elapsed time at a given display instant.
+    func stepElapsed(at date: Date = Date()) -> TimeInterval {
+        max(0, date.timeIntervalSince(stepStartedAt))
+    }
+
+    /// Returns age of the latest daemon update at a given display instant.
+    func lastUpdateAge(at date: Date = Date()) -> TimeInterval {
+        max(0, date.timeIntervalSince(lastUpdatedAt))
+    }
+}
+
+extension TimeInterval {
+    /// Compact duration text for pipeline status displays.
+    var pipelineDurationText: String {
+        let seconds = max(0, Int(self.rounded()))
+        if seconds < 60 { return "\(seconds)s" }
+        let minutes = seconds / 60
+        let remainder = seconds % 60
+        return "\(minutes)m \(remainder)s"
     }
 }
 

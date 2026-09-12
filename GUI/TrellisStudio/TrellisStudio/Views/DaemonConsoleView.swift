@@ -48,6 +48,20 @@ struct DaemonConsoleView: View {
 
             Spacer()
 
+            if !daemon.consoleOutput.isEmpty {
+                Button(action: daemon.clearConsole) {
+                    Label("Clear", systemImage: "trash")
+                        .labelStyle(.titleAndIcon)
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(Theme.slateGray)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(Theme.CornerRadius.button)
+            }
+
             if daemon.isOffline && !daemon.isWarmingUp {
                 Button(action: restartDaemon) {
                     Label("Restart", systemImage: "arrow.clockwise")
@@ -96,7 +110,7 @@ struct DaemonConsoleView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
             }
-            .frame(maxHeight: 160)
+            .frame(maxHeight: 220)
             .onChange(of: daemon.consoleOutput.count) { _, newCount in
                 withAnimation(.easeOut(duration: 0.15)) {
                     proxy.scrollTo(newCount - 1, anchor: .bottom)

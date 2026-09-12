@@ -13,9 +13,9 @@ def send_response(data):
     """Send a JSON response to the active client, or stdout before connect."""
     with _send_lock:
         send = _active_client_send
-    if send:
-        send(data)
-        return
+        if send:
+            send(data)
+            return
     print(json.dumps({"response": data}))
     sys.stdout.flush()
 

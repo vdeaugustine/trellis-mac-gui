@@ -84,23 +84,40 @@ struct TrellisStudioApp: App {
         let log = AppLogger.shared
         let fm = FileManager.default
 
+        let filenames = [
+            "trellis_daemon.py",
+            "daemon_generation.py",
+            "daemon_hf_cache.py",
+            "daemon_legacy.py",
+            "daemon_load_heartbeat.py",
+            "daemon_memory.py",
+            "daemon_pipeline.py",
+            "daemon_server.py",
+            "daemon_transport.py",
+        ]
+
         let bundleCandidates: [URL] = [
-            // 1. App bundle (production builds)
-            Bundle.main.url(forResource: "BackendBundle", withExtension: nil),
-            // 2. Source tree: TrellisStudioApp.swift is in TrellisStudio/
+            // 1. Source tree: TrellisStudioApp.swift is in TrellisStudio/
             URL(fileURLWithPath: #filePath)
                 .deletingLastPathComponent() // TrellisStudio/
                 .appendingPathComponent("BackendBundle"),
-            // 3. Source tree: from Services/ subdirectory
+            // 2. Source tree: from Services/ subdirectory
             URL(fileURLWithPath: #filePath)
                 .deletingLastPathComponent()
                 .deletingLastPathComponent()
                 .appendingPathComponent("BackendBundle"),
-            // 4. Walk up from #filePath looking for BackendBundle
+            // 3. Walk up from #filePath looking for BackendBundle
             Self.findBackendBundleWalkingUp(from: #filePath),
+            // 4. App bundle (production builds)
+            Bundle.main.url(forResource: "BackendBundle", withExtension: nil),
         ].compactMap { $0 }
 
-        guard let sourceDir = bundleCandidates.first(where: {
+        let completeSource = bundleCandidates.first { candidate in
+            filenames.allSatisfy { filename in
+                fm.fileExists(atPath: candidate.appendingPathComponent(filename).path)
+            }
+        }
+        guard let sourceDir = completeSource ?? bundleCandidates.first(where: {
             fm.fileExists(atPath: $0.appendingPathComponent("trellis_daemon.py").path)
         }) else {
             log.warning(
@@ -112,15 +129,6 @@ struct TrellisStudioApp: App {
 
         log.info("Syncing daemon files from: \(sourceDir.path)", context: "Daemon")
 
-        let filenames = [
-            "trellis_daemon.py",
-            "daemon_generation.py",
-            "daemon_legacy.py",
-            "daemon_memory.py",
-            "daemon_pipeline.py",
-            "daemon_server.py",
-            "daemon_transport.py",
-        ]
         var changed = false
         for filename in filenames {
             let source = sourceDir.appendingPathComponent(filename)

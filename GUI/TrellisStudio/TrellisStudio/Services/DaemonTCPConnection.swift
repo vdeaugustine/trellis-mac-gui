@@ -180,11 +180,27 @@ final class DaemonTCPConnection {
 
         let stage = response["stage"] as? String ?? "?"
         let status = response["status"] as? String ?? "?"
-        log.info("← stage=\(stage) status=\(status)", context: "Daemon")
+        log.info("← \(responseSummary(response, stage: stage, status: status))", context: "Daemon")
 
         DispatchQueue.main.async { [weak self] in
             self?.onResponse?(response)
         }
+    }
+
+    private func responseSummary(_ response: [String: Any], stage: String, status: String) -> String {
+        var fields = ["stage=\(stage)", "status=\(status)"]
+        if let current = response["current"] as? Int,
+           let total = response["total"] as? Int,
+           total > 0 {
+            fields.append("step=\(current)/\(total)")
+        }
+        if let phase = response["phase"] as? String {
+            fields.append("phase=\(phase)")
+        }
+        if let message = response["message"] as? String {
+            fields.append("message=\(message.prefix(120))")
+        }
+        return fields.joined(separator: " ")
     }
 
     // MARK: - Disconnect
